@@ -3,7 +3,6 @@ use std::fs;
 use std::path::Path;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[repr(transparent)]
 pub enum CameraSource {
     Index(u8),
 }

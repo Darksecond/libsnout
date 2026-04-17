@@ -14,9 +14,16 @@ dnf install onnxruntime onnxruntime-devel opencv opencv-devel
 
 ### Compiling
 
-```bash
+```sh
 export ORT_PREFER_DYNAMIC_LINK=1
-cargo build
+cargo build -F ffi
+```
+
+### Generating `snout.h`
+
+```sh
+cargo install --force cbindgen
+cbindgen --config cbindgen.toml --output snout.h
 ```
 
 ## Building and running frontend

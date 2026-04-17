@@ -1,0 +1,4 @@
+
+language = "c"
+include_guard = "snout_h"
+cpp_compat = false
