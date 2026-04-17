@@ -13,8 +13,6 @@ typedef struct CameraSource CameraSource;
  *
  * Results are accessed via [`snout_camera_name`] and [`snout_camera_source`].
  * Returns the number of cameras found.
- *
- * Returned pointers are valid until the next call to [`snout_query_cameras`].
  */
 uintptr_t snout_query_cameras(void);
 

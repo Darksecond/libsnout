@@ -9,8 +9,6 @@ static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
 ///
 /// Results are accessed via [`snout_camera_name`] and [`snout_camera_source`].
 /// Returns the number of cameras found.
-///
-/// Returned pointers are valid until the next call to [`snout_query_cameras`].
 #[unsafe(no_mangle)]
 pub extern "C" fn snout_query_cameras() -> usize {
     let mut cameras = CAMERA_INFO.lock().expect("Failed to acquire lock");
