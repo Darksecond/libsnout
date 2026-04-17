@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/snout-frontend"]
+
+[package]
+name = "snout"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ndarray = "0.17.2"
+opencv = "0.98.2"
+ort = { version = "2.0.0-rc.12", default-features = false, features = ["api-20", "ndarray", "cuda", "std"] }
+rosc = "0.11.4"
+thiserror = "2.0.18"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
