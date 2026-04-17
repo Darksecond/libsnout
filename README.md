@@ -21,10 +21,12 @@ cargo build
 
 ## Building and running frontend
 
+Make sure to grab the `faceModel.onnx` file from the baballonia repo.
+
 ```sh
 export ORT_LIB_PATH=/usr/lib64/
 export ORT_PREFER_DYNAMIC_LINK=1
-cargo build -p snout-frontend
+cargo run -p snout-frontend
 ```
 
 ## License
