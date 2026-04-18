@@ -7,7 +7,7 @@ mod internal;
 use opencv::core::{CV_8UC1, Mat, MatTraitConst, MatTraitConstManual};
 use thiserror::Error;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Frame {
     pub(crate) mat: Mat,
 }
@@ -21,6 +21,13 @@ impl Frame {
         assert!(mat.is_continuous());
 
         Self { mat }
+    }
+
+    /// Create an empty Frame
+    pub fn empty() -> Self {
+        Self {
+            mat: Mat::default(),
+        }
     }
 
     pub unsafe fn new_unchecked(mat: Mat) -> Self {
@@ -54,45 +61,4 @@ pub enum CameraError {
     InvalidFrame,
     #[error("Internal driver error: {0}")]
     Internal(String),
-}
-
-/// Crop an area of the frame.
-/// defined by normalized coordinates (0.0 - 1.0).
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
-pub struct Crop {
-    pub top_left: (f32, f32),
-    pub bottom_right: (f32, f32),
-}
-
-impl Crop {
-    pub const fn full() -> Self {
-        Self {
-            top_left: (0., 0.),
-            bottom_right: (1., 1.),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
-pub struct Calibration {
-    /// In radians
-    pub rotation: f32,
-    pub brightness: f64,
-    pub horizontal_flip: bool,
-    pub vertical_flip: bool,
-    pub crop: Crop,
-}
-
-impl Default for Calibration {
-    fn default() -> Self {
-        Self {
-            rotation: 0.,
-            brightness: 1.,
-            horizontal_flip: false,
-            vertical_flip: false,
-            crop: Crop::full(),
-        }
-    }
 }

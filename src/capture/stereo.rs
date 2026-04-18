@@ -3,11 +3,7 @@ use opencv::{
     core::{Mat, MatTraitConst, Rect},
 };
 
-use crate::capture::{
-    Calibration, CameraError, Frame,
-    discovery::CameraSource,
-    internal::{Calibrator, Camera},
-};
+use crate::capture::{CameraError, Frame, discovery::CameraSource, internal::Camera};
 
 enum StereoCameraDevice {
     Single(Camera),
@@ -15,9 +11,6 @@ enum StereoCameraDevice {
 }
 
 pub struct StereoCamera {
-    left_calibrator: Calibrator,
-    right_calibrator: Calibrator,
-
     device: StereoCameraDevice,
 
     left_frame: Frame,
@@ -41,33 +34,9 @@ impl StereoCamera {
     fn with_device(device: StereoCameraDevice) -> Result<Self, CameraError> {
         Ok(Self {
             device,
-            left_calibrator: Calibrator::new(Calibration {
-                brightness: 0.66,
-                ..Calibration::default()
-            }),
-            right_calibrator: Calibrator::new(Calibration {
-                brightness: 0.66,
-                ..Calibration::default()
-            }),
             left_frame: unsafe { Frame::new_unchecked(Mat::default()) },
             right_frame: unsafe { Frame::new_unchecked(Mat::default()) },
         })
-    }
-
-    pub fn left_calibration(&self) -> Calibration {
-        self.left_calibrator.calibration
-    }
-
-    pub fn set_left_calibration(&mut self, calibration: Calibration) {
-        self.left_calibrator.calibration = calibration;
-    }
-
-    pub fn right_calibration(&self) -> Calibration {
-        self.right_calibrator.calibration
-    }
-
-    pub fn set_right_calibration(&mut self, calibration: Calibration) {
-        self.right_calibrator.calibration = calibration;
     }
 
     pub fn get_frames(&mut self) -> Result<(&Frame, &Frame), CameraError> {
@@ -77,24 +46,22 @@ impl StereoCamera {
                 let (left, right) =
                     split(&mat).map_err(|e| CameraError::Internal(e.to_string()))?;
 
-                self.left_calibrator
-                    .calibrate(&left, &mut self.left_frame.mat)
+                left.copy_to(&mut self.left_frame.mat)
                     .map_err(|e| CameraError::Internal(e.to_string()))?;
 
-                self.right_calibrator
-                    .calibrate(&right, &mut self.right_frame.mat)
+                right
+                    .copy_to(&mut self.right_frame.mat)
                     .map_err(|e| CameraError::Internal(e.to_string()))?;
             }
             StereoCameraDevice::Dual(left, right) => {
                 let left = left.require_frame()?;
                 let right = right.require_frame()?;
 
-                self.left_calibrator
-                    .calibrate(left, &mut self.left_frame.mat)
+                left.copy_to(&mut self.left_frame.mat)
                     .map_err(|e| CameraError::Internal(e.to_string()))?;
 
-                self.right_calibrator
-                    .calibrate(right, &mut self.right_frame.mat)
+                right
+                    .copy_to(&mut self.right_frame.mat)
                     .map_err(|e| CameraError::Internal(e.to_string()))?;
             }
         };
