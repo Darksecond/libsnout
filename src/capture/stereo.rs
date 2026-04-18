@@ -42,11 +42,11 @@ impl StereoCamera {
         Ok(Self {
             device,
             left_calibrator: Calibrator::new(Calibration {
-                gamma: 0.66,
+                brightness: 0.66,
                 ..Calibration::default()
             }),
             right_calibrator: Calibrator::new(Calibration {
-                gamma: 0.66,
+                brightness: 0.66,
                 ..Calibration::default()
             }),
             left_frame: unsafe { Frame::new_unchecked(Mat::default()) },
@@ -73,51 +73,29 @@ impl StereoCamera {
     pub fn get_frames(&mut self) -> Result<(&Frame, &Frame), CameraError> {
         match &mut self.device {
             StereoCameraDevice::Single(camera) => {
-                match camera.get_frame() {
-                    Ok(Some(mat)) => {
-                        let (left, right) =
-                            split(&mat).map_err(|e| CameraError::Internal(e.to_string()))?;
+                let mat = camera.require_frame()?;
+                let (left, right) =
+                    split(&mat).map_err(|e| CameraError::Internal(e.to_string()))?;
 
-                        // TODO: Calibrator
-                        self.left_calibrator
-                            .calibrate(&left, &mut self.left_frame.mat)
-                            .map_err(|e| CameraError::Internal(e.to_string()))?;
+                self.left_calibrator
+                    .calibrate(&left, &mut self.left_frame.mat)
+                    .map_err(|e| CameraError::Internal(e.to_string()))?;
 
-                        // TODO: Calibrator
-                        self.right_calibrator
-                            .calibrate(&right, &mut self.right_frame.mat)
-                            .map_err(|e| CameraError::Internal(e.to_string()))?;
-
-                        Ok(())
-                    }
-                    Ok(None) => Err(CameraError::InvalidFrame),
-                    Err(_) => Err(CameraError::Disconnected),
-                }?;
+                self.right_calibrator
+                    .calibrate(&right, &mut self.right_frame.mat)
+                    .map_err(|e| CameraError::Internal(e.to_string()))?;
             }
             StereoCameraDevice::Dual(left, right) => {
-                match left.get_frame() {
-                    Ok(Some(mat)) => {
-                        // TODO: Calibrator
-                        mat.copy_to(&mut self.left_frame.mat)
-                            .map_err(|e| CameraError::Internal(e.to_string()))?;
+                let left = left.require_frame()?;
+                let right = right.require_frame()?;
 
-                        Ok(())
-                    }
-                    Ok(None) => Err(CameraError::InvalidFrame),
-                    Err(_) => Err(CameraError::Disconnected),
-                }?;
+                self.left_calibrator
+                    .calibrate(left, &mut self.left_frame.mat)
+                    .map_err(|e| CameraError::Internal(e.to_string()))?;
 
-                match right.get_frame() {
-                    Ok(Some(mat)) => {
-                        // TODO: Calibrator
-                        mat.copy_to(&mut self.right_frame.mat)
-                            .map_err(|e| CameraError::Internal(e.to_string()))?;
-
-                        Ok(())
-                    }
-                    Ok(None) => Err(CameraError::InvalidFrame),
-                    Err(_) => Err(CameraError::Disconnected),
-                }?;
+                self.right_calibrator
+                    .calibrate(right, &mut self.right_frame.mat)
+                    .map_err(|e| CameraError::Internal(e.to_string()))?;
             }
         };
 

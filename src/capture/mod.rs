@@ -79,7 +79,7 @@ impl Crop {
 pub struct Calibration {
     /// In radians
     pub rotation: f32,
-    pub gamma: f64,
+    pub brightness: f64,
     pub horizontal_flip: bool,
     pub vertical_flip: bool,
     pub crop: Crop,
@@ -89,7 +89,7 @@ impl Default for Calibration {
     fn default() -> Self {
         Self {
             rotation: 0.,
-            gamma: 1.,
+            brightness: 1.,
             horizontal_flip: false,
             vertical_flip: false,
             crop: Crop::full(),

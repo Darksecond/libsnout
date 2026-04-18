@@ -112,10 +112,16 @@ impl FaceShape {
 
 impl FaceShape {
     const fn from(value: usize) -> Self {
+        assert!(value < Self::count());
+
         unsafe { std::mem::transmute(value as u8) }
     }
 
     const fn count() -> usize {
+        const {
+            assert!(Self::TongueTwistRight as usize + 1 == 45);
+        }
+
         Self::TongueTwistRight as usize + 1
     }
 }
@@ -133,7 +139,7 @@ impl FacePipeline {
         Ok(Self {
             bounds: vec![Bounds::new_01(); FaceShape::count()],
             transfer: Transfer::new(),
-            inference: Inference::new(path).map_err(|_| PipelineError::UnknownModel)?,
+            inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
             weights: default_weights(),
         })
     }
@@ -165,7 +171,7 @@ impl FacePipeline {
         let weights = self
             .inference
             .run()
-            .map_err(|_| PipelineError::InferenceError)?;
+            .map_err(|e| PipelineError::Inference(e.to_string()))?;
 
         // TODO: Filtering
         // Update weights with new values

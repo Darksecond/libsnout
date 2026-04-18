@@ -1,6 +1,7 @@
 use std::net::{ToSocketAddrs, UdpSocket};
 
 use rosc::{OscMessage, OscPacket, OscType, encoder};
+use thiserror::Error;
 
 use crate::pipeline::{ShapeWeight, eye::EyeShape, face::FaceShape};
 
@@ -9,17 +10,25 @@ pub struct OscTransport {
     destination: std::net::SocketAddr,
 }
 
+#[derive(Clone, Debug, Error)]
+pub enum TransportError {
+    #[error("failed to bind UDP socket")]
+    Bind,
+    #[error("failed to resolve destination address")]
+    Resolve,
+}
+
 impl OscTransport {
-    pub fn udp(destination: impl ToSocketAddrs) -> Self {
-        Self {
-            socket: UdpSocket::bind("0.0.0.0:0").expect("failed to bind UDP socket"),
+    pub fn udp(destination: impl ToSocketAddrs) -> Result<Self, TransportError> {
+        Ok(Self {
+            socket: UdpSocket::bind("0.0.0.0:0").map_err(|_| TransportError::Bind)?,
 
             destination: destination
                 .to_socket_addrs()
-                .expect("failed to resolve destination address")
+                .map_err(|_| TransportError::Resolve)?
                 .next()
-                .expect("failed to get next socket address"),
-        }
+                .ok_or(TransportError::Resolve)?,
+        })
     }
 
     pub(crate) fn send(&mut self, msg: OscMessage) {

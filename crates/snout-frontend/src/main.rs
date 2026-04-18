@@ -13,7 +13,7 @@ pub fn main() {
 
         let mut camera = MonoCamera::open(sources[1].source).unwrap();
         let mut pipeline = FacePipeline::new("faceModel.onnx").unwrap();
-        let mut transport = OscTransport::udp("127.0.0.1:9400");
+        let mut transport = OscTransport::udp("127.0.0.1:9400").unwrap();
         let mut babble = BabbleEmitter::new();
 
         loop {

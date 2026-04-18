@@ -4,7 +4,7 @@ use opencv::{
     videoio::{CAP_ANY, VideoCapture, VideoCaptureTrait},
 };
 
-use crate::capture::{Calibration, discovery::CameraSource};
+use crate::capture::{Calibration, CameraError, discovery::CameraSource};
 
 pub struct Camera {
     device: VideoCapture,
@@ -47,6 +47,14 @@ impl Camera {
 
         Ok(Some(&self.gray))
     }
+
+    pub fn require_frame(&mut self) -> Result<&Mat, CameraError> {
+        match self.get_frame() {
+            Ok(Some(mat)) => Ok(mat),
+            Ok(None) => Err(CameraError::InvalidFrame),
+            Err(e) => Err(CameraError::Internal(e.to_string())),
+        }
+    }
 }
 
 pub struct Calibrator {
@@ -65,8 +73,8 @@ impl Calibrator {
     ) -> Result<(), opencv::Error> {
         // TODO: Other things
 
-        // TODO: Double check, maybe `1. - gamma`
-        source.convert_to(destination, source.typ(), self.calibration.gamma, 0.)?;
+        // TODO: Double check, maybe `1. - brightness`
+        source.convert_to(destination, source.typ(), self.calibration.brightness, 0.)?;
 
         Ok(())
     }

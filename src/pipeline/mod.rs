@@ -15,10 +15,10 @@ pub fn init_runtime() {
 
 #[derive(Clone, Debug, Error)]
 pub enum PipelineError {
-    #[error("Unknown model")]
-    UnknownModel,
-    #[error("Inference error")]
-    InferenceError,
+    #[error("Failed to load model: {0}")]
+    Load(String),
+    #[error("Inference failed: {0}")]
+    Inference(String),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]

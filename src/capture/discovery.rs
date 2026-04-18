@@ -13,6 +13,11 @@ pub struct CameraInfo {
     pub name: String,
 }
 
+/// Queries the system for available cameras.
+///
+/// Returns a list of [`CameraInfo`] structs.
+///
+/// This will only work on Linux.
 pub fn query_cameras() -> Vec<CameraInfo> {
     fn extract_index(path: &Path) -> Option<usize> {
         path.file_name()?
