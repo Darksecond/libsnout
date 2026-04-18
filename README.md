@@ -9,7 +9,7 @@ Make sure you have `onnxruntime` and `opencv` installed.
 
 On fedora it's:
 ```sh
-dnf install onnxruntime onnxruntime-devel opencv opencv-devel
+dnf install onnxruntime onnxruntime-devel opencv opencv-devel llvm llvm-devel
 ```
 
 ### Compiling
