@@ -23,36 +23,15 @@ pub enum PipelineError {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
-pub struct ShapeWeight<S> {
-    pub shape: S,
-    pub raw: f32,
-    pub value: f32,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[repr(C)]
-pub struct Bounds {
-    pub min: f32,
-    pub max: f32,
-    pub lower: f32,
-    pub upper: f32,
-}
-
-impl Bounds {
-    pub(crate) const fn new_01() -> Self {
-        Self {
-            min: 0.,
-            max: 1.,
-            lower: 0.,
-            upper: 1.,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[repr(C)]
 pub struct FilterParameters {
     pub enable: bool,
     pub min_cutoff: f32,
     pub beta: f32,
+}
+
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+pub struct PipelineWeights<'a> {
+    pub raw: &'a [f32],
+    pub filtered: &'a [f32],
 }

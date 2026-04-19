@@ -2,19 +2,8 @@ use std::path::Path;
 
 use crate::{
     capture::Frame,
-    pipeline::{Bounds, FilterParameters, PipelineError, ShapeWeight},
+    pipeline::{FilterParameters, PipelineError, PipelineWeights},
 };
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum EyeShape {
-    LeftEyePitch,
-    LeftEyeYaw,
-    LeftEyeLid,
-    RightEyePitch,
-    RightEyeYaw,
-    RightEyeLid,
-}
 
 pub struct EyePipeline {
     // TODO
@@ -23,16 +12,6 @@ pub struct EyePipeline {
 impl EyePipeline {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
         let _ = path;
-        todo!()
-    }
-
-    pub fn bounds(&self, shape: EyeShape) -> Bounds {
-        let _ = shape;
-        todo!()
-    }
-
-    pub fn set_bounds(&mut self, shape: EyeShape, bounds: Bounds) {
-        let _ = (shape, bounds);
         todo!()
     }
 
@@ -58,7 +37,7 @@ impl EyePipeline {
         &'a mut self,
         left: &Frame,
         right: &Frame,
-    ) -> Result<Option<&'a [ShapeWeight<EyeShape>]>, PipelineError> {
+    ) -> Result<Option<PipelineWeights<'a>>, PipelineError> {
         let _ = (left, right);
         todo!()
     }

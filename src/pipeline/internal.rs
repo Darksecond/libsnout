@@ -14,6 +14,7 @@ pub struct Inference {
     session: Session,
     input_name: String,
     pub input_tensor: Tensor<f32>,
+    pub output: Vec<f32>,
 }
 
 impl Inference {
@@ -28,31 +29,42 @@ impl Inference {
             .tensor_shape()
             .unwrap()
             .iter()
+            .copied()
+            .collect::<Vec<_>>();
+
+        let output_dims = session.outputs()[0]
+            .dtype()
+            .tensor_shape()
+            .unwrap()
+            .iter()
+            .copied()
             .collect::<Vec<_>>();
 
         let input_tensor = Tensor::from_array(Array4::<f32>::zeros((
             1,
-            *dims[1] as _,
-            *dims[2] as _,
-            *dims[3] as _,
+            dims[1] as _,
+            dims[2] as _,
+            dims[3] as _,
         )))?;
 
         Ok(Self {
             session,
             input_tensor,
             input_name,
+            output: vec![0.; output_dims[1] as usize],
         })
     }
 
-    pub fn run(&mut self) -> Result<Vec<f32>, Error> {
+    pub fn run(&mut self) -> Result<&[f32], Error> {
         let outputs = self
             .session
             .run(inputs![&self.input_name => &self.input_tensor])?;
 
         let blendshapes = outputs[0].try_extract_tensor::<f32>()?;
-        let values = blendshapes.1.iter().copied().collect();
 
-        Ok(values)
+        self.output.copy_from_slice(blendshapes.1);
+
+        Ok(&self.output)
     }
 }
 
