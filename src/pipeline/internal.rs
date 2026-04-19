@@ -1,3 +1,5 @@
+pub mod one_euro_filter;
+
 use std::path::Path;
 
 use ndarray::Array4;

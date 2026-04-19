@@ -51,7 +51,7 @@ impl Bounds {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
-pub struct Filter {
+pub struct FilterParameters {
     pub enable: bool,
     pub min_cutoff: f32,
     pub beta: f32,

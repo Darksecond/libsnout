@@ -3,8 +3,8 @@ use std::path::Path;
 use crate::{
     capture::Frame,
     pipeline::{
-        Bounds, Filter, PipelineError, ShapeWeight,
-        internal::{Inference, Transfer},
+        Bounds, FilterParameters, PipelineError, ShapeWeight,
+        internal::{Inference, Transfer, one_euro_filter::OneEuroFilter},
     },
 };
 
@@ -131,7 +131,7 @@ pub struct FacePipeline {
     bounds: Vec<Bounds>,
     inference: Inference,
     weights: Vec<ShapeWeight<FaceShape>>,
-    // TODO filter
+    filter: OneEuroFilter,
 }
 
 impl FacePipeline {
@@ -141,6 +141,7 @@ impl FacePipeline {
             transfer: Transfer::new(),
             inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
             weights: default_weights(),
+            filter: OneEuroFilter::new(FaceShape::count()),
         })
     }
 
@@ -152,13 +153,12 @@ impl FacePipeline {
         self.bounds[shape as usize] = bounds;
     }
 
-    pub fn filter(&self) -> Filter {
-        todo!()
+    pub fn filter(&self) -> FilterParameters {
+        self.filter.parameters
     }
 
-    pub fn set_filter(&mut self, filter: Filter) {
-        let _ = filter;
-        todo!()
+    pub fn set_filter(&mut self, parameters: FilterParameters) {
+        self.filter.parameters = parameters;
     }
 
     pub fn run<'a>(
@@ -168,16 +168,18 @@ impl FacePipeline {
         self.transfer
             .transfer(&frame.mat, &mut self.inference.input_tensor);
 
+        // TODO: &[f32] instead of Vec<f32>
         let weights = self
             .inference
             .run()
             .map_err(|e| PipelineError::Inference(e.to_string()))?;
 
-        // TODO: Filtering
+        let filtered_weights = self.filter.filter(&weights);
+
         // Update weights with new values
-        for (weight, value) in self.weights.iter_mut().zip(weights) {
-            weight.raw = value;
-            weight.value = value;
+        for ((weight, raw), value) in self.weights.iter_mut().zip(weights).zip(filtered_weights) {
+            weight.raw = raw;
+            weight.value = *value;
         }
 
         Ok(Some(self.weights.as_slice()))

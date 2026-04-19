@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     capture::Frame,
-    pipeline::{Bounds, Filter, PipelineError, ShapeWeight},
+    pipeline::{Bounds, FilterParameters, PipelineError, ShapeWeight},
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -36,11 +36,11 @@ impl EyePipeline {
         todo!()
     }
 
-    pub fn filter(&self) -> Filter {
+    pub fn filter(&self) -> FilterParameters {
         todo!()
     }
 
-    pub fn set_filter(&mut self, filter: Filter) {
+    pub fn set_filter(&mut self, filter: FilterParameters) {
         let _ = filter;
         todo!()
     }
