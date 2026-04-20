@@ -70,7 +70,7 @@ impl StereoCamera {
     }
 }
 
-pub fn split<'a>(mat: &'a Mat) -> Result<(BoxedRef<'a, Mat>, BoxedRef<'a, Mat>), opencv::Error> {
+fn split<'a>(mat: &'a Mat) -> Result<(BoxedRef<'a, Mat>, BoxedRef<'a, Mat>), opencv::Error> {
     let width = mat.cols() as i32;
     let height = mat.rows() as i32;
 

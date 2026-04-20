@@ -1,11 +1,14 @@
 pub mod discovery;
-pub mod mono;
-pub mod stereo;
+mod mono;
+mod stereo;
 
 mod internal;
 
 use opencv::core::{CV_8UC1, Mat, MatTraitConst, MatTraitConstManual};
 use thiserror::Error;
+
+pub use mono::MonoCamera;
+pub use stereo::StereoCamera;
 
 #[derive(Debug)]
 pub struct Frame {

@@ -7,12 +7,11 @@ use snout::{
         face::ManualFaceCalibrator,
     },
     capture::{
+        MonoCamera, StereoCamera,
         discovery::{CameraSource, query_cameras},
-        mono::MonoCamera,
-        stereo::StereoCamera,
     },
     output::{BabbleEmitter, EtvrEmitter, OscTransport},
-    pipeline::{eye::EyePipeline, face::FacePipeline, init_runtime},
+    pipeline::{EyePipeline, FacePipeline, init_runtime},
 };
 
 pub struct EyeTracker {

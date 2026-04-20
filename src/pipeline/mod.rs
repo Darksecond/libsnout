@@ -1,9 +1,12 @@
-pub mod eye;
-pub mod face;
+mod eye;
+mod face;
 
 mod internal;
 
 use thiserror::Error;
+
+pub use eye::EyePipeline;
+pub use face::FacePipeline;
 
 /// Initialize the ONNX runtime.
 pub fn init_runtime() {
