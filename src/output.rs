@@ -86,7 +86,7 @@ pub struct EtvrEmitter {
 
 impl EtvrEmitter {
     pub fn new() -> Self {
-        todo!()
+        Self {}
     }
 
     pub fn process_eyes(
@@ -94,8 +94,16 @@ impl EtvrEmitter {
         weights: &[ShapeWeight<EyeShape>],
         transport: &mut OscTransport,
     ) {
-        let _ = (weights, transport);
-        todo!()
+        for weight in weights {
+            let value = weight.shape.to_etvr_value(weight.value);
+
+            let msg = OscMessage {
+                addr: weight.shape.to_etvr().to_string(),
+                args: vec![OscType::Float(value)],
+            };
+
+            transport.send(msg);
+        }
     }
 }
 

@@ -55,8 +55,8 @@ impl Frame {
 pub enum CameraError {
     #[error("Failed to open camera device")]
     OpenError,
-    #[error("Camera disconnected")]
-    Disconnected,
+    /// Received an empty or invalid frame from hardware.
+    /// This can mean that the camera is disconnected or the frame data is corrupted.
     #[error("Received an empty or invalid frame from hardware")]
     InvalidFrame,
     #[error("Internal driver error: {0}")]

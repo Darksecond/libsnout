@@ -25,6 +25,25 @@ impl EyeShape {
 
         Self::RightEyeLid as usize + 1
     }
+
+    pub(crate) fn to_etvr(self) -> &'static str {
+        match self {
+            Self::LeftEyePitch => "/avatar/parameters/v2/EyeLeftX",
+            Self::LeftEyeYaw => "/avatar/parameters/v2/EyeLeftY",
+            Self::LeftEyeLid => "/avatar/parameters/v2/EyeLidLeft",
+            Self::RightEyePitch => "/avatar/parameters/v2/EyeRightX",
+            Self::RightEyeYaw => "/avatar/parameters/v2/EyeRightY",
+            Self::RightEyeLid => "/avatar/parameters/v2/EyeLidRight",
+        }
+    }
+
+    pub(crate) fn to_etvr_value(self, value: f32) -> f32 {
+        if self == Self::LeftEyeLid || self == Self::RightEyeLid {
+            1. - value
+        } else {
+            value
+        }
+    }
 }
 
 /// Calibrator for eye shapes.
