@@ -1,7 +1,4 @@
-use crate::{
-    calibration::{Bounds, ShapeWeight},
-    pipeline::PipelineWeights,
-};
+use crate::calibration::{Bounds, ShapeWeight};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -142,16 +139,10 @@ impl ManualFaceCalibrator {
         self.bounds[shape as usize] = bounds;
     }
 
-    pub fn calibrate(&mut self, weights: PipelineWeights) -> &[ShapeWeight<FaceShape>] {
+    pub fn calibrate(&mut self, weights: &[f32]) -> &[ShapeWeight<FaceShape>] {
         // Update weights with new values
-        for (((weight, _raw), filtered), bounds) in self
-            .weights
-            .iter_mut()
-            .zip(weights.raw)
-            .zip(weights.filtered)
-            .zip(&self.bounds)
-        {
-            weight.value = bounds.remap(*filtered);
+        for ((weight, value), bounds) in self.weights.iter_mut().zip(weights).zip(&self.bounds) {
+            weight.value = bounds.remap(*value);
         }
 
         &self.weights

@@ -28,10 +28,3 @@ pub struct FilterParameters {
     pub min_cutoff: f32,
     pub beta: f32,
 }
-
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
-pub struct PipelineWeights<'a> {
-    pub raw: &'a [f32],
-    pub filtered: &'a [f32],
-}

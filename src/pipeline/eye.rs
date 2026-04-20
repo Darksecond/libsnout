@@ -1,44 +1,62 @@
 use std::path::Path;
 
 use crate::{
+    calibration::eye::EyeShape,
     capture::Frame,
-    pipeline::{FilterParameters, PipelineError, PipelineWeights},
+    pipeline::{
+        FilterParameters, PipelineError,
+        internal::{
+            Inference, Transfer, eye_collector::EyeCollector, one_euro_filter::OneEuroFilter,
+        },
+    },
 };
 
 pub struct EyePipeline {
-    // TODO
+    transfer: Transfer,
+    inference: Inference,
+    collector: EyeCollector,
+    filter: OneEuroFilter,
 }
 
 impl EyePipeline {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
         let _ = path;
-        todo!()
+
+        Ok(Self {
+            transfer: Transfer::new(),
+            inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
+            collector: EyeCollector::new(),
+            filter: OneEuroFilter::new(EyeShape::count()),
+        })
     }
 
     pub fn filter(&self) -> FilterParameters {
-        todo!()
+        self.filter.parameters
     }
 
-    pub fn set_filter(&mut self, filter: FilterParameters) {
-        let _ = filter;
-        todo!()
+    pub fn set_filter(&mut self, parameters: FilterParameters) {
+        self.filter.parameters = parameters;
     }
 
-    pub fn link_eyes(&self) -> bool {
-        todo!()
-    }
+    pub fn run(&mut self, left: &Frame, right: &Frame) -> Result<Option<&[f32]>, PipelineError> {
+        let Some(mat) = self
+            .collector
+            .collect(left, right)
+            .map_err(|e| PipelineError::Inference(e.to_string()))?
+        else {
+            return Ok(None);
+        };
 
-    pub fn set_link_eyes(&mut self, value: bool) {
-        let _ = value;
-        todo!()
-    }
+        self.transfer
+            .transfer(mat, &mut self.inference.input_tensor);
 
-    pub fn run<'a>(
-        &'a mut self,
-        left: &Frame,
-        right: &Frame,
-    ) -> Result<Option<PipelineWeights<'a>>, PipelineError> {
-        let _ = (left, right);
-        todo!()
+        let weights = self
+            .inference
+            .run()
+            .map_err(|e| PipelineError::Inference(e.to_string()))?;
+
+        let filtered_weights = self.filter.filter(&weights);
+
+        Ok(Some(filtered_weights))
     }
 }

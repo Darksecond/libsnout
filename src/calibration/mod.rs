@@ -21,6 +21,15 @@ impl Bounds {
         }
     }
 
+    pub(crate) const fn new_11() -> Self {
+        Self {
+            min: -1.,
+            max: 1.,
+            lower: -1.,
+            upper: 1.,
+        }
+    }
+
     pub(crate) const fn remap(&self, value: f32) -> f32 {
         self.min + (value - self.lower) * (self.max - self.min) / (self.upper - self.lower)
     }

@@ -4,7 +4,7 @@ use crate::{
     calibration::face::FaceShape,
     capture::Frame,
     pipeline::{
-        FilterParameters, PipelineError, PipelineWeights,
+        FilterParameters, PipelineError,
         internal::{Inference, Transfer, one_euro_filter::OneEuroFilter},
     },
 };
@@ -32,10 +32,7 @@ impl FacePipeline {
         self.filter.parameters = parameters;
     }
 
-    pub fn run<'a>(
-        &'a mut self,
-        frame: &Frame,
-    ) -> Result<Option<PipelineWeights<'a>>, PipelineError> {
+    pub fn run(&mut self, frame: &Frame) -> Result<Option<&[f32]>, PipelineError> {
         self.transfer
             .transfer(&frame.mat, &mut self.inference.input_tensor);
 
@@ -46,9 +43,6 @@ impl FacePipeline {
 
         let filtered_weights = self.filter.filter(&weights);
 
-        Ok(Some(PipelineWeights {
-            raw: weights,
-            filtered: filtered_weights,
-        }))
+        Ok(Some(filtered_weights))
     }
 }

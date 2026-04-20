@@ -1,3 +1,4 @@
+pub mod eye_collector;
 pub mod one_euro_filter;
 
 use std::path::Path;
