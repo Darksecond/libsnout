@@ -39,8 +39,10 @@ impl OscTransport {
         }
     }
 
-    pub fn flush(&mut self) {
+    // TODO: This should return a TransportError
+    pub fn flush(&mut self) -> Result<(), TransportError> {
         // No-op for now
+        Ok(())
     }
 }
 
