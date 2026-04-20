@@ -23,7 +23,7 @@ impl Crop {
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
-pub struct Calibration {
+pub struct PreprocessConfig {
     /// In radians
     pub rotation: f32,
     pub brightness: f64,
@@ -32,7 +32,7 @@ pub struct Calibration {
     pub crop: Crop,
 }
 
-impl Default for Calibration {
+impl Default for PreprocessConfig {
     fn default() -> Self {
         Self {
             rotation: 0.,
@@ -45,33 +45,33 @@ impl Default for Calibration {
 }
 
 #[derive(Clone, Debug, Error)]
-pub enum CalibrationError {
+pub enum PreprocessError {
     #[error("Internal error: {0}")]
     Internal(String),
 }
 
-pub struct FrameCalibrator {
+pub struct FramePreprocessor {
     frame: Frame,
-    calibration: Calibration,
+    config: PreprocessConfig,
 }
 
-impl FrameCalibrator {
+impl FramePreprocessor {
     pub fn new() -> Self {
         Self {
             frame: Frame::empty(),
-            calibration: Calibration::default(),
+            config: PreprocessConfig::default(),
         }
     }
 
-    pub fn calibration(&self) -> &Calibration {
-        &self.calibration
+    pub fn config(&self) -> &PreprocessConfig {
+        &self.config
     }
 
-    pub fn set_calibration(&mut self, calibration: Calibration) {
-        self.calibration = calibration;
+    pub fn set_config(&mut self, calibration: PreprocessConfig) {
+        self.config = calibration;
     }
 
-    pub fn calibrate(&mut self, source: &Frame) -> Result<&Frame, CalibrationError> {
+    pub fn process(&mut self, source: &Frame) -> Result<&Frame, PreprocessError> {
         // TODO: Other things
 
         // TODO: Double check, maybe `1. - brightness`
@@ -80,10 +80,10 @@ impl FrameCalibrator {
             .convert_to(
                 &mut self.frame.mat,
                 source.mat.typ(),
-                self.calibration.brightness,
+                self.config.brightness,
                 0.,
             )
-            .map_err(|e| CalibrationError::Internal(e.to_string()))?;
+            .map_err(|e| PreprocessError::Internal(e.to_string()))?;
 
         Ok(&self.frame)
     }

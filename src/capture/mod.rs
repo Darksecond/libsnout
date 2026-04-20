@@ -1,5 +1,6 @@
 pub mod discovery;
 mod mono;
+pub mod processing;
 mod stereo;
 
 mod internal;

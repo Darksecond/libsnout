@@ -1,14 +1,11 @@
 use std::time::Duration;
 
 use snout::{
-    calibration::{
-        camera::{Calibration, FrameCalibrator},
-        eye::EyeCalibrator,
-        face::ManualFaceCalibrator,
-    },
+    calibration::{EyeCalibrator, ManualFaceCalibrator},
     capture::{
         MonoCamera, StereoCamera,
         discovery::{CameraSource, query_cameras},
+        processing::{FramePreprocessor, PreprocessConfig},
     },
     output::{BabbleEmitter, EtvrEmitter, OscTransport},
     pipeline::{EyePipeline, FacePipeline, init_runtime},
@@ -16,8 +13,8 @@ use snout::{
 
 pub struct EyeTracker {
     camera: StereoCamera,
-    left_frame_calibrator: FrameCalibrator,
-    right_frame_calibrator: FrameCalibrator,
+    left_preprocessor: FramePreprocessor,
+    right_preprocessor: FramePreprocessor,
     pipeline: EyePipeline,
     eye_calibrator: EyeCalibrator,
     etvr: EtvrEmitter,
@@ -26,16 +23,16 @@ pub struct EyeTracker {
 impl EyeTracker {
     pub fn new(source: CameraSource) -> Self {
         let camera = StereoCamera::open_sbs(source).unwrap();
-        let left_frame_calibrator = FrameCalibrator::new();
-        let right_frame_calibrator = FrameCalibrator::new();
+        let left_frame_calibrator = FramePreprocessor::new();
+        let right_frame_calibrator = FramePreprocessor::new();
         let pipeline = EyePipeline::new("eyeModel.onnx").unwrap();
         let eye_calibrator = EyeCalibrator::new();
         let etvr = EtvrEmitter::new();
 
         Self {
             camera,
-            left_frame_calibrator,
-            right_frame_calibrator,
+            left_preprocessor: left_frame_calibrator,
+            right_preprocessor: right_frame_calibrator,
             pipeline,
             eye_calibrator,
             etvr,
@@ -44,11 +41,11 @@ impl EyeTracker {
 
     pub fn track(&mut self, transport: &mut OscTransport) {
         let (left, right) = self.camera.get_frames().unwrap();
-        let left_calibrated_frame = self.left_frame_calibrator.calibrate(left).unwrap();
-        let right_calibrated_frame = self.right_frame_calibrator.calibrate(right).unwrap();
+        let left_processed_frame = self.left_preprocessor.process(left).unwrap();
+        let right_processed_frame = self.right_preprocessor.process(right).unwrap();
         let Some(raw_weights) = self
             .pipeline
-            .run(left_calibrated_frame, right_calibrated_frame)
+            .run(left_processed_frame, right_processed_frame)
             .unwrap()
         else {
             return;
@@ -62,7 +59,7 @@ impl EyeTracker {
 
 struct FaceTracker {
     camera: MonoCamera,
-    frame_calibrator: FrameCalibrator,
+    preprocessor: FramePreprocessor,
     pipeline: FacePipeline,
     face_calibrator: ManualFaceCalibrator,
     babble: BabbleEmitter,
@@ -71,19 +68,19 @@ struct FaceTracker {
 impl FaceTracker {
     pub fn new(source: CameraSource) -> Self {
         let camera = MonoCamera::open(source).unwrap();
-        let mut frame_calibrator = FrameCalibrator::new();
+        let mut preprocessor = FramePreprocessor::new();
         let pipeline = FacePipeline::new("faceModel.onnx").unwrap();
         let face_calibrator = ManualFaceCalibrator::new();
         let babble = BabbleEmitter::new();
 
-        frame_calibrator.set_calibration(Calibration {
+        preprocessor.set_config(PreprocessConfig {
             brightness: 1.,
-            ..Calibration::default()
+            ..PreprocessConfig::default()
         });
 
         Self {
             camera,
-            frame_calibrator,
+            preprocessor,
             pipeline,
             face_calibrator,
             babble,
@@ -92,8 +89,8 @@ impl FaceTracker {
 
     pub fn track(&mut self, transport: &mut OscTransport) {
         let frame = self.camera.get_frame().unwrap();
-        let calibrated_frame = self.frame_calibrator.calibrate(frame).unwrap();
-        let Some(weights) = self.pipeline.run(calibrated_frame).unwrap() else {
+        let processed_frame = self.preprocessor.process(frame).unwrap();
+        let Some(weights) = self.pipeline.run(processed_frame).unwrap() else {
             return;
         };
 

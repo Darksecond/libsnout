@@ -1,6 +1,8 @@
-pub mod camera;
-pub mod eye;
-pub mod face;
+mod eye;
+mod face;
+
+pub use eye::{EyeCalibrator, EyeShape};
+pub use face::{FaceShape, ManualFaceCalibrator};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)]

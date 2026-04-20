@@ -1,16 +1,16 @@
 use std::path::Path;
 
 use crate::{
-    calibration::face::FaceShape,
+    calibration::FaceShape,
     capture::Frame,
     pipeline::{
         FilterParameters, PipelineError,
-        internal::{Inference, Transfer, one_euro_filter::OneEuroFilter},
+        internal::{FrameToTensor, Inference, one_euro_filter::OneEuroFilter},
     },
 };
 
 pub struct FacePipeline {
-    transfer: Transfer,
+    transfer: FrameToTensor,
     inference: Inference,
     filter: OneEuroFilter,
 }
@@ -18,7 +18,7 @@ pub struct FacePipeline {
 impl FacePipeline {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
         Ok(Self {
-            transfer: Transfer::new(),
+            transfer: FrameToTensor::new(),
             inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
             filter: OneEuroFilter::new(FaceShape::count()),
         })

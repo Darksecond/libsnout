@@ -1,4 +1,4 @@
-pub mod eye_collector;
+pub mod eye_compositor;
 pub mod one_euro_filter;
 
 use std::path::Path;
@@ -81,12 +81,12 @@ fn builder() -> Result<SessionBuilder, Error> {
     Ok(builder)
 }
 
-pub struct Transfer {
+pub struct FrameToTensor {
     f32_mat: Mat,
     resized: Mat,
 }
 
-impl Transfer {
+impl FrameToTensor {
     pub fn new() -> Self {
         Self {
             f32_mat: Mat::default(),

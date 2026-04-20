@@ -1,20 +1,20 @@
 use std::path::Path;
 
 use crate::{
-    calibration::eye::EyeShape,
+    calibration::EyeShape,
     capture::Frame,
     pipeline::{
         FilterParameters, PipelineError,
         internal::{
-            Inference, Transfer, eye_collector::EyeCollector, one_euro_filter::OneEuroFilter,
+            FrameToTensor, Inference, eye_compositor::EyeCompositor, one_euro_filter::OneEuroFilter,
         },
     },
 };
 
 pub struct EyePipeline {
-    transfer: Transfer,
+    transfer: FrameToTensor,
     inference: Inference,
-    collector: EyeCollector,
+    collector: EyeCompositor,
     filter: OneEuroFilter,
 }
 
@@ -23,9 +23,9 @@ impl EyePipeline {
         let _ = path;
 
         Ok(Self {
-            transfer: Transfer::new(),
+            transfer: FrameToTensor::new(),
             inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
-            collector: EyeCollector::new(),
+            collector: EyeCompositor::new(),
             filter: OneEuroFilter::new(EyeShape::count()),
         })
     }
@@ -41,7 +41,7 @@ impl EyePipeline {
     pub fn run(&mut self, left: &Frame, right: &Frame) -> Result<Option<&[f32]>, PipelineError> {
         let Some(mat) = self
             .collector
-            .collect(left, right)
+            .compose(left, right)
             .map_err(|e| PipelineError::Inference(e.to_string()))?
         else {
             return Ok(None);

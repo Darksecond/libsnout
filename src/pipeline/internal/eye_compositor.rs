@@ -7,12 +7,12 @@ use opencv::{
 
 use crate::capture::Frame;
 
-pub struct EyeCollector {
+pub struct EyeCompositor {
     octo: Mat,
     queue: VecDeque<(Mat, Mat)>,
 }
 
-impl EyeCollector {
+impl EyeCompositor {
     pub fn new() -> Self {
         Self {
             octo: Mat::default(),
@@ -20,7 +20,7 @@ impl EyeCollector {
         }
     }
 
-    pub fn collect(&mut self, left: &Frame, right: &Frame) -> Result<Option<&Mat>, opencv::Error> {
+    pub fn compose(&mut self, left: &Frame, right: &Frame) -> Result<Option<&Mat>, opencv::Error> {
         let mut left_hist = Mat::default();
         imgproc::equalize_hist(&left.mat, &mut left_hist)?;
 

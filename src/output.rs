@@ -3,7 +3,7 @@ use std::net::{ToSocketAddrs, UdpSocket};
 use rosc::{OscMessage, OscPacket, OscType, encoder};
 use thiserror::Error;
 
-use crate::calibration::{ShapeWeight, eye::EyeShape, face::FaceShape};
+use crate::calibration::{EyeShape, FaceShape, ShapeWeight};
 
 pub struct OscTransport {
     socket: UdpSocket,
