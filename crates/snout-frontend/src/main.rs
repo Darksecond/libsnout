@@ -40,7 +40,10 @@ impl EyeTracker {
     }
 
     pub fn track(&mut self, transport: &mut OscTransport) {
-        let (left, right) = self.camera.get_frames().unwrap();
+        let Ok((left, right)) = self.camera.get_frames() else {
+            return;
+        };
+
         let left_processed_frame = self.left_preprocessor.process(left).unwrap();
         let right_processed_frame = self.right_preprocessor.process(right).unwrap();
         let Some(raw_weights) = self
@@ -88,7 +91,9 @@ impl FaceTracker {
     }
 
     pub fn track(&mut self, transport: &mut OscTransport) {
-        let frame = self.camera.get_frame().unwrap();
+        let Ok(frame) = self.camera.get_frame() else {
+            return;
+        };
         let processed_frame = self.preprocessor.process(frame).unwrap();
         let Some(weights) = self.pipeline.run(processed_frame).unwrap() else {
             return;

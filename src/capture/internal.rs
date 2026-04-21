@@ -1,72 +1,91 @@
 use image::GrayImage;
-use opencv::{
-    core::{AlgorithmHint, Mat, MatTraitConst, MatTraitConstManual},
-    imgproc::COLOR_BGR2GRAY,
-    videoio::{
-        CAP_ANY, CAP_PROP_FRAME_HEIGHT, CAP_PROP_FRAME_WIDTH, VideoCapture, VideoCaptureTrait,
-        VideoCaptureTraitConst,
-    },
-};
+use v4l::{buffer::Type, io::traits::CaptureStream, prelude::UserptrStream, video::Capture};
 
 use crate::capture::{CameraError, discovery::CameraSource};
 
-pub struct OpenCvCamera {
-    device: VideoCapture,
-    raw: Mat,
-    gray: Mat,
+#[derive(Copy, Clone, Debug)]
+enum PixelFormat {
+    Grey,
+    Yuyv,
+    Uyvy,
+    Mjpeg,
+}
+
+pub struct V4lCamera {
+    _device: v4l::Device,
+    stream: UserptrStream,
+    pixel_format: PixelFormat,
     pub width: usize,
     pub height: usize,
 }
 
-impl OpenCvCamera {
+impl V4lCamera {
     pub fn open(source: CameraSource) -> Result<Self, CameraError> {
-        let index = match source {
+        let source = match source {
             CameraSource::Index(i) => i,
         };
 
-        let device = VideoCapture::new(index as _, CAP_ANY)
-            .map_err(|e| CameraError::Internal(e.to_string()))?;
+        let device = v4l::Device::new(source as _)?;
+        let mut format = device.format()?;
 
-        let width = device
-            .get(CAP_PROP_FRAME_WIDTH)
-            .map_err(|e| CameraError::Internal(e.to_string()))? as usize;
-        let height = device
-            .get(CAP_PROP_FRAME_HEIGHT)
-            .map_err(|e| CameraError::Internal(e.to_string()))? as usize;
+        let preferred = [
+            (v4l::FourCC::new(b"GREY"), PixelFormat::Grey),
+            (v4l::FourCC::new(b"YUYV"), PixelFormat::Yuyv),
+            (v4l::FourCC::new(b"UYVY"), PixelFormat::Uyvy),
+            (v4l::FourCC::new(b"MJPG"), PixelFormat::Mjpeg),
+        ];
+
+        // TODO: Revisit this and improve.
+        let mut pixel_format = None;
+        for (fourcc, pf) in preferred {
+            format.fourcc = fourcc;
+            let actual = device.set_format(&format)?;
+            if actual.fourcc == fourcc {
+                format = actual;
+                pixel_format = Some(pf);
+                break;
+            }
+        }
+
+        let pixel_format = pixel_format.ok_or(CameraError::OpenError)?;
+        let width = format.width as usize;
+        let height = format.height as usize;
+
+        dbg!(pixel_format);
+
+        let stream = UserptrStream::new(&device, Type::VideoCapture)?;
 
         Ok(Self {
-            device,
-            raw: Mat::default(),
-            gray: Mat::default(),
+            _device: device,
+            stream,
+            pixel_format,
             width,
             height,
         })
     }
 
     pub fn read_frame(&mut self, destination: &mut GrayImage) -> Result<(), CameraError> {
-        self.device.read(&mut self.raw)?;
-
-        if self.raw.empty() {
-            return Err(CameraError::InvalidFrame);
+        let (buf, _meta) = self.stream.next()?;
+        match self.pixel_format {
+            PixelFormat::Grey => destination.copy_from_slice(buf),
+            PixelFormat::Yuyv => {
+                // extract Y channel: every other byte
+                for (dst, &y) in destination.iter_mut().zip(buf.iter().step_by(2)) {
+                    *dst = y;
+                }
+            }
+            PixelFormat::Uyvy => {
+                for (dst, &y) in destination.iter_mut().zip(buf[1..].iter().step_by(2)) {
+                    *dst = y;
+                }
+            }
+            PixelFormat::Mjpeg => {
+                let img = image::load_from_memory(&buf[..])
+                    .map_err(|e| CameraError::InvalidFrame(e.to_string()))?
+                    .into_luma8();
+                destination.copy_from_slice(img.as_raw());
+            }
         }
-
-        let gray = if self.raw.channels() == 1 {
-            &self.raw
-        } else {
-            opencv::imgproc::cvt_color(
-                &self.raw,
-                &mut &mut self.gray,
-                COLOR_BGR2GRAY,
-                0,
-                AlgorithmHint::ALGO_HINT_DEFAULT,
-            )?;
-
-            &self.gray
-        };
-
-        let src = gray.data_typed::<u8>()?;
-        destination.copy_from_slice(src);
-
         Ok(())
     }
 }

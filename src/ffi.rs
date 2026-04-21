@@ -25,7 +25,7 @@ impl From<CameraError> for SnoutError {
     fn from(error: CameraError) -> Self {
         match error {
             CameraError::OpenError => SnoutError::CameraOpen,
-            CameraError::InvalidFrame => SnoutError::CameraInvalidFrame,
+            CameraError::InvalidFrame(_) => SnoutError::CameraInvalidFrame,
             CameraError::Internal(_) => SnoutError::CameraInternal,
             CameraError::FrameMismatch { .. } => SnoutError::CameraFrameMismatch,
         }

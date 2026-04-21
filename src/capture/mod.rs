@@ -54,8 +54,8 @@ pub enum CameraError {
     OpenError,
     /// Received an empty or invalid frame from hardware.
     /// This can mean that the camera is disconnected or the frame data is corrupted.
-    #[error("Received an empty or invalid frame from hardware")]
-    InvalidFrame,
+    #[error("Invalid frame: {0}")]
+    InvalidFrame(String),
     #[error("Internal driver error: {0}")]
     Internal(String),
     #[error("Frame size mismatch: expected {expected:?}, got {actual:?}")]
@@ -65,8 +65,8 @@ pub enum CameraError {
     },
 }
 
-impl From<opencv::Error> for CameraError {
-    fn from(e: opencv::Error) -> Self {
+impl From<std::io::Error> for CameraError {
+    fn from(e: std::io::Error) -> Self {
         Self::Internal(e.to_string())
     }
 }

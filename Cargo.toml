@@ -7,13 +7,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-image = { version = "0.25.10", default-features = false }
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
 imageproc = { version = "0.26.1", default-features = false }
 ndarray = "0.17.2"
-opencv = { version = "0.98.2", default-features = false, features = ["imgproc", "videoio"] }
 ort = { version = "2.0.0-rc.12", default-features = false, features = ["api-20", "ndarray", "cuda", "std"] }
 rosc = "0.11.4"
 thiserror = "2.0.18"
+v4l = "0.14.0"
 
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]
