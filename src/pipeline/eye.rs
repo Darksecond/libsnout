@@ -39,16 +39,12 @@ impl EyePipeline {
     }
 
     pub fn run(&mut self, left: &Frame, right: &Frame) -> Result<Option<&[f32]>, PipelineError> {
-        let Some(mat) = self
-            .collector
-            .compose(left, right)
-            .map_err(|e| PipelineError::Inference(e.to_string()))?
-        else {
+        let Some(mat) = self.collector.compose(left, right) else {
             return Ok(None);
         };
 
         self.transfer
-            .transfer(mat, &mut self.inference.input_tensor);
+            .transfer_composite(mat, &mut self.inference.input_tensor);
 
         let weights = self
             .inference

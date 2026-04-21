@@ -18,6 +18,7 @@ pub enum SnoutError {
     CameraOpen,
     CameraInvalidFrame,
     CameraInternal,
+    CameraFrameMismatch,
 }
 
 impl From<CameraError> for SnoutError {
@@ -26,6 +27,7 @@ impl From<CameraError> for SnoutError {
             CameraError::OpenError => SnoutError::CameraOpen,
             CameraError::InvalidFrame => SnoutError::CameraInvalidFrame,
             CameraError::Internal(_) => SnoutError::CameraInternal,
+            CameraError::FrameMismatch { .. } => SnoutError::CameraFrameMismatch,
         }
     }
 }

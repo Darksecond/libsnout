@@ -34,7 +34,7 @@ impl FacePipeline {
 
     pub fn run(&mut self, frame: &Frame) -> Result<Option<&[f32]>, PipelineError> {
         self.transfer
-            .transfer(&frame.mat, &mut self.inference.input_tensor);
+            .transfer_frame(frame, &mut self.inference.input_tensor);
 
         let weights = self
             .inference

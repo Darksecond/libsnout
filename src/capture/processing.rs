@@ -1,4 +1,3 @@
-use opencv::core::MatTraitConst;
 use thiserror::Error;
 
 use crate::capture::Frame;
@@ -26,7 +25,7 @@ impl Crop {
 pub struct PreprocessConfig {
     /// In radians
     pub rotation: f32,
-    pub brightness: f64,
+    pub brightness: f32,
     pub horizontal_flip: bool,
     pub vertical_flip: bool,
     pub crop: Crop,
@@ -58,7 +57,7 @@ pub struct FramePreprocessor {
 impl FramePreprocessor {
     pub fn new() -> Self {
         Self {
-            frame: Frame::empty(),
+            frame: Frame::empty(0, 0),
             config: PreprocessConfig::default(),
         }
     }
@@ -72,18 +71,22 @@ impl FramePreprocessor {
     }
 
     pub fn process(&mut self, source: &Frame) -> Result<&Frame, PreprocessError> {
+        if self.frame.width() != source.width() || self.frame.height() != source.height() {
+            self.frame = Frame::empty(source.width() as u32, source.height() as u32);
+        }
+
         // TODO: Other things
 
+        // Brightness
         // TODO: Double check, maybe `1. - brightness`
-        source
-            .mat
-            .convert_to(
-                &mut self.frame.mat,
-                source.mat.typ(),
-                self.config.brightness,
-                0.,
-            )
-            .map_err(|e| PreprocessError::Internal(e.to_string()))?;
+        {
+            let brightness = self.config.brightness;
+            let src = source.as_slice();
+            let dst = self.frame.image.as_mut();
+            for (dst, &src) in dst.iter_mut().zip(src.iter()) {
+                *dst = (src as f32 * brightness).clamp(0.0, 255.0) as u8
+            }
+        }
 
         Ok(&self.frame)
     }

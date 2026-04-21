@@ -4,12 +4,13 @@ pub mod one_euro_filter;
 use std::path::Path;
 
 use ndarray::Array4;
-use opencv::core::{Mat, MatTraitConst};
 use ort::{
     Error, inputs,
     session::{Session, builder::SessionBuilder},
     value::Tensor,
 };
+
+use crate::{capture::Frame, pipeline::internal::eye_compositor::CompositeImage};
 
 pub struct Inference {
     session: Session,
@@ -81,65 +82,67 @@ fn builder() -> Result<SessionBuilder, Error> {
     Ok(builder)
 }
 
-pub struct FrameToTensor {
-    f32_mat: Mat,
-    resized: Mat,
-}
+pub struct FrameToTensor {}
 
 impl FrameToTensor {
     pub fn new() -> Self {
-        Self {
-            f32_mat: Mat::default(),
-            resized: Mat::default(),
-        }
+        Self {}
     }
 
-    /// Transfer from HWC to NCHW
-    pub fn transfer(&mut self, source: &Mat, destination: &mut Tensor<f32>) {
-        let dimensions = destination.shape();
-
-        assert_eq!(
-            source.channels(),
-            dimensions[1] as _,
-            "channel count mismatch"
+    pub fn transfer_frame(&mut self, source: &Frame, destination: &mut Tensor<f32>) {
+        self.transfer(
+            &source.image.as_ref(),
+            source.image.width(),
+            source.image.height(),
+            1,
+            destination,
         );
+    }
 
-        // Convert mat to f32 (and divide by 255)
-        source
-            .convert_to(
-                &mut self.f32_mat,
-                opencv::core::CV_32FC(source.channels()),
-                1.0 / 255.0,
-                0.,
-            )
-            .expect("Conversion to f32 failed");
+    pub fn transfer_composite(&mut self, source: &CompositeImage, destination: &mut Tensor<f32>) {
+        self.transfer(
+            source.data.as_ref(),
+            source.width,
+            source.height,
+            source.channels,
+            destination,
+        );
+    }
 
-        // Resize mat to tensor width/height
-        opencv::imgproc::resize(
-            &self.f32_mat,
-            &mut self.resized,
-            opencv::core::Size::new(dimensions[3] as _, dimensions[2] as _),
-            0.,
-            0.,
-            opencv::imgproc::INTER_LINEAR,
-        )
-        .expect("Resize failed");
+    pub fn transfer(
+        &mut self,
+        data: &[u8],
+        width: u32,
+        height: u32,
+        channels: usize,
+        destination: &mut Tensor<f32>,
+    ) {
+        let dims = destination.shape();
 
-        // Copy data
-        let c = dimensions[1] as usize;
-        let h = dimensions[2] as usize;
-        let w = dimensions[3] as usize;
+        let tc = dims[1] as usize;
+        let th = dims[2] as usize;
+        let tw = dims[3] as usize;
 
-        let len = h * w * c;
-        let ptr = self.resized.ptr(0).expect("Failed to get ptr") as *const f32;
-        let src = unsafe { std::slice::from_raw_parts(ptr, len) };
+        assert_eq!(channels, tc, "channel count mismatch");
 
-        let hwc_view = ndarray::ArrayView3::from_shape((h, w, c), src)
-            .expect("Shape mismatch between Mat and ndarray view");
+        let pixels_per_channel = (width as usize) * (height as usize);
+        let mut out = destination.extract_array_mut();
 
-        destination
-            .extract_array_mut()
-            .index_axis_mut(ndarray::Axis(0), 0)
-            .assign(&hwc_view.permuted_axes([2, 0, 1]));
+        for c in 0..tc {
+            let ch_data = &data[c * pixels_per_channel..(c + 1) * pixels_per_channel];
+            let source: image::ImageBuffer<image::Luma<u8>, &[u8]> =
+                image::ImageBuffer::from_raw(width, height, ch_data).unwrap();
+
+            let resized_buf = image::imageops::resize(
+                &source,
+                tw as u32,
+                th as u32,
+                image::imageops::FilterType::Triangle,
+            );
+
+            for (i, &pixel) in resized_buf.as_raw().iter().enumerate() {
+                out[[0, c, i / tw as usize, i % tw as usize]] = pixel as f32 / 255.0;
+            }
+        }
     }
 }

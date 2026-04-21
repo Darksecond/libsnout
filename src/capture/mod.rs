@@ -5,7 +5,7 @@ mod stereo;
 
 mod internal;
 
-use opencv::core::{CV_8UC1, Mat, MatTraitConst, MatTraitConstManual};
+use image::GrayImage;
 use thiserror::Error;
 
 pub use mono::MonoCamera;
@@ -13,45 +13,38 @@ pub use stereo::StereoCamera;
 
 #[derive(Debug)]
 pub struct Frame {
-    pub(crate) mat: Mat,
+    pub(crate) image: GrayImage,
 }
 
 impl Frame {
-    pub fn new(mat: Mat) -> Self {
-        assert_eq!(mat.channels(), 1);
-        assert_eq!(mat.typ(), CV_8UC1);
-
-        // TODO: Optional we can *make* it continuous here
-        assert!(mat.is_continuous());
-
-        Self { mat }
+    pub fn new(image: GrayImage) -> Self {
+        Self { image }
     }
 
-    /// Create an empty Frame
-    pub fn empty() -> Self {
+    pub fn empty(width: u32, height: u32) -> Self {
         Self {
-            mat: Mat::default(),
+            image: GrayImage::new(width, height),
         }
     }
 
-    pub unsafe fn new_unchecked(mat: Mat) -> Self {
-        Self { mat }
+    pub unsafe fn new_unchecked(image: GrayImage) -> Self {
+        Self { image }
     }
 
     pub fn width(&self) -> usize {
-        self.mat.cols() as usize
+        self.image.width() as _
     }
 
     pub fn height(&self) -> usize {
-        self.mat.rows() as usize
+        self.image.height() as usize
     }
 
     pub fn as_slice(&self) -> &[u8] {
-        self.mat.data_typed::<u8>().expect("Failed to get data")
+        self.image.iter().as_slice()
     }
 
-    pub fn into_mat(self) -> Mat {
-        self.mat
+    pub fn into_image(self) -> GrayImage {
+        self.image
     }
 }
 
@@ -65,4 +58,15 @@ pub enum CameraError {
     InvalidFrame,
     #[error("Internal driver error: {0}")]
     Internal(String),
+    #[error("Frame size mismatch: expected {expected:?}, got {actual:?}")]
+    FrameMismatch {
+        expected: (u32, u32),
+        actual: (u32, u32),
+    },
+}
+
+impl From<opencv::Error> for CameraError {
+    fn from(e: opencv::Error) -> Self {
+        Self::Internal(e.to_string())
+    }
 }

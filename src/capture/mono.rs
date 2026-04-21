@@ -1,25 +1,22 @@
-use opencv::core::{Mat, MatTraitConst};
-
-use crate::capture::{CameraError, Frame, discovery::CameraSource, internal::Camera};
+use crate::capture::{CameraError, Frame, discovery::CameraSource, internal::OpenCvCamera};
 
 pub struct MonoCamera {
-    inner: Camera,
+    inner: OpenCvCamera,
     frame: Frame,
 }
 
 impl MonoCamera {
     pub fn open(source: CameraSource) -> Result<Self, CameraError> {
+        let inner = OpenCvCamera::open(source)?;
+
         Ok(Self {
-            inner: Camera::open(source).map_err(|_| CameraError::OpenError)?,
-            frame: unsafe { Frame::new_unchecked(Mat::default()) },
+            frame: Frame::empty(inner.width as u32, inner.height as u32),
+            inner,
         })
     }
 
     pub fn get_frame(&mut self) -> Result<&Frame, CameraError> {
-        let mat = self.inner.require_frame()?;
-
-        mat.copy_to(&mut self.frame.mat)
-            .map_err(|e| CameraError::Internal(e.to_string()))?;
+        self.inner.read_frame(&mut self.frame.image)?;
 
         Ok(&self.frame)
     }
