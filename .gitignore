@@ -1,3 +1,6 @@
 /target
 faceModel.onnx
 eyeModel.onnx
+eyeModel.safetensors
+simplifiedFaceModel.bpk
+upgradedFaceModel.onnx

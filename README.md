@@ -6,6 +6,7 @@ It's designed to be a library; easy to integrate in a variety of frontend projec
 ## Building libsnout
 
 Make sure you have `llvm-devel` installed.
+A working face tracking model is supplied. It's the same as in the baballonia repository, but ran through `onnxsim`.
 
 On fedora it's:
 ```sh
@@ -27,7 +28,6 @@ cbindgen --config cbindgen.toml --output snout.h
 
 ## Building and running frontend
 
-Make sure to grab the `faceModel.onnx` file from the baballonia repo.
 You also need a `eyeModel.safetensors` that can be converted.
 
 ```sh
