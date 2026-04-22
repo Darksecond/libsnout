@@ -1,30 +1,36 @@
 use std::path::Path;
 
+use burn::backend::wgpu::WgpuDevice;
+
 use crate::{
     calibration::EyeShape,
     capture::Frame,
+    nn::inference::EyeInference,
     pipeline::{
         FilterParameters, PipelineError,
         internal::{
-            FrameToTensor, Inference, eye_compositor::EyeCompositor, one_euro_filter::OneEuroFilter,
+            FrameToBurnTensor, eye_compositor::EyeCompositor, one_euro_filter::OneEuroFilter,
         },
     },
 };
 
 pub struct EyePipeline {
-    transfer: FrameToTensor,
-    inference: Inference,
+    device: WgpuDevice,
+    transfer: FrameToBurnTensor,
+    inference: EyeInference,
     collector: EyeCompositor,
     filter: OneEuroFilter,
 }
 
 impl EyePipeline {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
-        let _ = path;
+        let device = WgpuDevice::default();
+        let inference = EyeInference::new(&device, path)?;
 
         Ok(Self {
-            transfer: FrameToTensor::new(),
-            inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
+            device,
+            transfer: FrameToBurnTensor::new(8, 128, 128),
+            inference,
             collector: EyeCompositor::new(),
             filter: OneEuroFilter::new(EyeShape::count()),
         })
@@ -43,13 +49,9 @@ impl EyePipeline {
             return Ok(None);
         };
 
-        self.transfer
-            .transfer_composite(mat, &mut self.inference.input_tensor);
+        let tensor = self.transfer.transfer_composite(mat, &self.device);
 
-        let weights = self
-            .inference
-            .run()
-            .map_err(|e| PipelineError::Inference(e.to_string()))?;
+        let weights = self.inference.run(tensor)?;
 
         let filtered_weights = self.filter.filter(&weights);
 

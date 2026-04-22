@@ -1,26 +1,34 @@
 use std::path::Path;
 
+use burn::backend::wgpu::WgpuDevice;
+
 use crate::{
     calibration::FaceShape,
     capture::Frame,
+    nn::inference::FaceInference,
     pipeline::{
         FilterParameters, PipelineError,
-        internal::{FrameToTensor, Inference, one_euro_filter::OneEuroFilter},
+        internal::{FrameToBurnTensor, one_euro_filter::OneEuroFilter},
     },
 };
 
 pub struct FacePipeline {
-    transfer: FrameToTensor,
-    inference: Inference,
+    device: WgpuDevice,
+    transfer: FrameToBurnTensor,
+    inference: FaceInference,
     filter: OneEuroFilter,
 }
 
 impl FacePipeline {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
+        let device = WgpuDevice::default();
+        let inference = FaceInference::new(&device, path)?;
+
         Ok(Self {
-            transfer: FrameToTensor::new(),
-            inference: Inference::new(path).map_err(|e| PipelineError::Load(e.to_string()))?,
+            transfer: FrameToBurnTensor::new(1, 224, 224),
+            inference,
             filter: OneEuroFilter::new(FaceShape::count()),
+            device,
         })
     }
 
@@ -33,13 +41,9 @@ impl FacePipeline {
     }
 
     pub fn run(&mut self, frame: &Frame) -> Result<Option<&[f32]>, PipelineError> {
-        self.transfer
-            .transfer_frame(frame, &mut self.inference.input_tensor);
+        let tensor = self.transfer.transfer_frame(frame, &self.device);
 
-        let weights = self
-            .inference
-            .run()
-            .map_err(|e| PipelineError::Inference(e.to_string()))?;
+        let weights = self.inference.run(tensor)?;
 
         let filtered_weights = self.filter.filter(&weights);
 

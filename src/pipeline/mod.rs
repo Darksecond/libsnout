@@ -8,14 +8,6 @@ use thiserror::Error;
 pub use eye::EyePipeline;
 pub use face::FacePipeline;
 
-/// Initialize the ONNX runtime.
-pub fn init_runtime() {
-    ort::init()
-        .with_execution_providers([ort::ep::CUDA::default().build()])
-        .with_name("libsnout")
-        .commit();
-}
-
 #[derive(Clone, Debug, Error)]
 pub enum PipelineError {
     #[error("Failed to load model: {0}")]

@@ -1,3 +1,5 @@
+mod nn;
+
 pub mod calibration;
 pub mod capture;
 pub mod output;

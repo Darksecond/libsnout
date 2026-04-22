@@ -8,7 +8,7 @@ use snout::{
         processing::{FramePreprocessor, PreprocessConfig},
     },
     output::{BabbleEmitter, EtvrEmitter, OscTransport},
-    pipeline::{EyePipeline, FacePipeline, init_runtime},
+    pipeline::{EyePipeline, FacePipeline},
 };
 
 pub struct EyeTracker {
@@ -25,7 +25,7 @@ impl EyeTracker {
         let camera = StereoCamera::open_sbs(source).unwrap();
         let left_frame_calibrator = FramePreprocessor::new();
         let right_frame_calibrator = FramePreprocessor::new();
-        let pipeline = EyePipeline::new("eyeModel.onnx").unwrap();
+        let pipeline = EyePipeline::new("eyeModel.safetensors").unwrap();
         let eye_calibrator = EyeCalibrator::new();
         let etvr = EtvrEmitter::new();
 
@@ -72,7 +72,7 @@ impl FaceTracker {
     pub fn new(source: CameraSource) -> Self {
         let camera = MonoCamera::open(source).unwrap();
         let mut preprocessor = FramePreprocessor::new();
-        let pipeline = FacePipeline::new("faceModel.onnx").unwrap();
+        let pipeline = FacePipeline::new("simplifiedFaceModel.bpk").unwrap();
         let face_calibrator = ManualFaceCalibrator::new();
         let babble = BabbleEmitter::new();
 
@@ -105,8 +105,6 @@ impl FaceTracker {
 }
 
 pub fn main() {
-    init_runtime();
-
     let sources = query_cameras();
 
     let mut transport = OscTransport::udp("127.0.0.1:9400").unwrap();
