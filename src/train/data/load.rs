@@ -4,10 +4,10 @@ use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-pub const FRAME_META_SIZE: usize = 100;
+const FRAME_META_SIZE: usize = 100;
 
 /// Sanity cap on per-eye JPEG size.
-pub const MAX_JPEG_SIZE: usize = 10 * 1024 * 1024;
+const MAX_JPEG_SIZE: usize = 10 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FrameMeta {

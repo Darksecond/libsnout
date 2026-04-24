@@ -6,48 +6,61 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define HISTORY_LEN PER_EYE_CHANNELS
-
-#define HISTORY_BASE (HISTORY_LEN - 1)
-
-#define INPUT_CHANNELS (2 * PER_EYE_CHANNELS)
-
-#define LABEL_DIMS (2 * PER_EYE_OUTPUTS)
-
-#define IMAGE_HEIGHT 128
-
-#define IMAGE_WIDTH 128
-
-#define PER_EYE_CHANNELS 4
-
-#define PER_EYE_OUTPUTS 3
-
-#define DEFAULT_THRESHOLD 0.022669
-
-#define DEFAULT_ADAPTATION_WINDOW 100
-
-#define FRAME_META_SIZE 100
-
-/**
- * Sanity cap on per-eye JPEG size.
- */
-#define MAX_JPEG_SIZE ((10 * 1024) * 1024)
-
 /**
  * Represents an error that occurred during a Snout operation.
  */
 typedef enum SnoutError {
+  /**
+   * The operation completed successfully.
+   */
   SnoutError_Ok,
+  /**
+   * An null pointer was passed to a function that requires a valid pointer.
+   */
   SnoutError_NullPointer,
+  /**
+   * The input string was not valid UTF-8.
+   */
+  SnoutError_InvalidUtf8,
+  /**
+   * The camera failed to open.
+   */
   SnoutError_CameraOpen,
+  /**
+   * An invalid frame was received from the camera.
+   *
+   * This might mean the camera was disconnected, or could be a transient error.
+   */
   SnoutError_CameraInvalidFrame,
+  /**
+   * An internal error occurred during camera operations.
+   */
   SnoutError_CameraInternal,
+  /**
+   * The camera frame did not match the expected format.
+   */
   SnoutError_CameraFrameMismatch,
+  /**
+   * An internal error occurred during preprocessing.
+   */
+  SnoutError_PreprocessInternal,
+  /**
+   * The pipeline failed to load.
+   */
+  SnoutError_PipelineLoad,
+  /**
+   * The pipeline failed during inference.
+   */
+  SnoutError_PipelineInference,
 } SnoutError;
 
 typedef struct CameraSource CameraSource;
 
+typedef struct FacePipeline FacePipeline;
+
 typedef struct Frame Frame;
+
+typedef struct FramePreprocessor FramePreprocessor;
 
 typedef struct MonoCamera MonoCamera;
 
@@ -60,6 +73,39 @@ typedef struct SnoutStereoCameraFrames {
   const struct Frame *left;
   const struct Frame *right;
 } SnoutStereoCameraFrames;
+
+/**
+ * Crop an area of the frame.
+ * defined by normalized coordinates (0.0 - 1.0).
+ */
+typedef struct Crop {
+  float top;
+  float left;
+  float bottom;
+  float right;
+} Crop;
+
+typedef struct PreprocessConfig {
+  /**
+   * In radians
+   */
+  float rotation;
+  float brightness;
+  bool horizontal_flip;
+  bool vertical_flip;
+  struct Crop crop;
+} PreprocessConfig;
+
+typedef struct FilterParameters {
+  bool enable;
+  float min_cutoff;
+  float beta;
+} FilterParameters;
+
+/**
+ * The number of face shape weights returned by [`snout_face_pipeline_run`].
+ */
+extern const uintptr_t SNOUT_FACE_SHAPE_COUNT;
 
 /**
  * Get the last error that occurred.
@@ -183,5 +229,78 @@ void snout_stereo_camera_free(struct StereoCamera *camera);
  * If an error occurs, the frames will be null and the error will be set.
  */
 struct SnoutStereoCameraFrames snout_stereo_camera_get_frames(struct StereoCamera *camera);
+
+/**
+ * Create a new frame preprocessor.
+ */
+struct FramePreprocessor *snout_frame_preprocessor_new(void);
+
+/**
+ * Free the frame preprocessor created by [`snout_frame_preprocessor_new`].
+ */
+void snout_frame_preprocessor_free(struct FramePreprocessor *preprocessor);
+
+/**
+ * Get the current preprocessing configuration.
+ *
+ * returns a copy of the current configuration.
+ */
+struct PreprocessConfig snout_frame_preprocessor_config(const struct FramePreprocessor *preprocessor);
+
+/**
+ * Set the preprocessing configuration.
+ */
+void snout_frame_preprocessor_set_config(struct FramePreprocessor *preprocessor,
+                                         struct PreprocessConfig config);
+
+/**
+ * Process a frame using the preprocessor.
+ *
+ * Returns a pointer to the processed frame, or null if an error occurred.
+ * The returned frame is valid until the next call to [`snout_frame_preprocessor_process`]
+ * or [`snout_frame_preprocessor_free`].
+ */
+const struct Frame *snout_frame_preprocessor_process(struct FramePreprocessor *preprocessor,
+                                                     const struct Frame *frame);
+
+/**
+ * Create a new face pipeline, loading the model from the given path.
+ *
+ * Returns a pointer to the pipeline, or null if the model could not be loaded.
+ * Check [`snout_last_error`] for details.
+ */
+struct FacePipeline *snout_face_pipeline_new(const char *path);
+
+/**
+ * Get the current filter parameters of the face pipeline.
+ *
+ * Returns a copy of the current filter parameters.
+ */
+struct FilterParameters snout_face_pipeline_filter(const struct FacePipeline *pipeline);
+
+/**
+ * Set the filter parameters of the face pipeline.
+ */
+void snout_face_pipeline_set_filter(struct FacePipeline *pipeline,
+                                    struct FilterParameters parameters);
+
+/**
+ * Run the face pipeline on a frame.
+ *
+ * Returns a pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+ *
+ * A returned null either indicates an error, or that the pipeline was not ready yet.
+ * Check [`snout_get_last_error`] to determine which.
+ * It will be `SnoutError_Ok` if the pipeline was not ready yet.
+ *
+ * The returned pointer is valid until the next call to [`snout_face_pipeline_run`]
+ * or [`snout_face_pipeline_free`].
+ */
+const float *snout_face_pipeline_run(struct FacePipeline *pipeline, const struct Frame *frame);
+
+/**
+ * Free the face pipeline.
+ */
+void snout_face_pipeline_free(struct FacePipeline *pipeline);
 
 #endif  /* snout_h */

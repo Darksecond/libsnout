@@ -7,6 +7,7 @@ use crate::capture::{
     processing::{FramePreprocessor, PreprocessConfig, PreprocessError},
 };
 use crate::capture::{Frame, StereoCamera};
+use crate::pipeline::{FacePipeline, FilterParameters, PipelineError};
 
 // TODO: thread_local!
 static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
@@ -15,13 +16,28 @@ static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub enum SnoutError {
+    /// The operation completed successfully.
     Ok,
+    /// An null pointer was passed to a function that requires a valid pointer.
     NullPointer,
+    /// The input string was not valid UTF-8.
+    InvalidUtf8,
+    /// The camera failed to open.
     CameraOpen,
+    /// An invalid frame was received from the camera.
+    ///
+    /// This might mean the camera was disconnected, or could be a transient error.
     CameraInvalidFrame,
+    /// An internal error occurred during camera operations.
     CameraInternal,
+    /// The camera frame did not match the expected format.
     CameraFrameMismatch,
+    /// An internal error occurred during preprocessing.
     PreprocessInternal,
+    /// The pipeline failed to load.
+    PipelineLoad,
+    /// The pipeline failed during inference.
+    PipelineInference,
 }
 
 impl From<CameraError> for SnoutError {
@@ -43,6 +59,15 @@ impl From<PreprocessError> for SnoutError {
     }
 }
 
+impl From<PipelineError> for SnoutError {
+    fn from(error: PipelineError) -> Self {
+        match error {
+            PipelineError::Load(_) => SnoutError::PipelineLoad,
+            PipelineError::Inference(_) => SnoutError::PipelineInference,
+        }
+    }
+}
+
 struct LastError {
     code: SnoutError,
     message: String,
@@ -56,6 +81,13 @@ fn set_null_pointer_error() {
     LAST_ERROR.with_borrow_mut(|last_error| {
         last_error.code = SnoutError::NullPointer;
         last_error.message = "a required argument is null".to_string();
+    });
+}
+
+fn set_utf8_error(e: std::str::Utf8Error) {
+    LAST_ERROR.with_borrow_mut(|last_error| {
+        last_error.code = SnoutError::InvalidUtf8;
+        last_error.message = e.to_string();
     });
 }
 
@@ -488,5 +520,124 @@ pub extern "C" fn snout_frame_preprocessor_process(
             set_last_error(e);
             std::ptr::null()
         }
+    }
+}
+
+/// The number of face shape weights returned by [`snout_face_pipeline_run`].
+#[unsafe(no_mangle)]
+pub static SNOUT_FACE_SHAPE_COUNT: usize = 45;
+
+/// Create a new face pipeline, loading the model from the given path.
+///
+/// Returns a pointer to the pipeline, or null if the model could not be loaded.
+/// Check [`snout_last_error`] for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_pipeline_new(path: *const c_char) -> *mut FacePipeline {
+    clear_last_error();
+
+    if path.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null_mut();
+    }
+
+    let path = unsafe { std::ffi::CStr::from_ptr(path) };
+    let path = match path.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    match FacePipeline::new(path) {
+        Ok(pipeline) => Box::into_raw(Box::new(pipeline)),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Get the current filter parameters of the face pipeline.
+///
+/// Returns a copy of the current filter parameters.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_pipeline_filter(pipeline: *const FacePipeline) -> FilterParameters {
+    clear_last_error();
+
+    if pipeline.is_null() {
+        set_null_pointer_error();
+        return FilterParameters::default();
+    }
+
+    let pipeline = unsafe { &*pipeline };
+
+    pipeline.filter()
+}
+
+/// Set the filter parameters of the face pipeline.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_pipeline_set_filter(
+    pipeline: *mut FacePipeline,
+    parameters: FilterParameters,
+) {
+    clear_last_error();
+
+    if pipeline.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let pipeline = unsafe { &mut *pipeline };
+
+    pipeline.set_filter(parameters);
+}
+
+/// Run the face pipeline on a frame.
+///
+/// Returns a pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+///
+/// A returned null either indicates an error, or that the pipeline was not ready yet.
+/// Check [`snout_get_last_error`] to determine which.
+/// It will be `SnoutError_Ok` if the pipeline was not ready yet.
+///
+/// The returned pointer is valid until the next call to [`snout_face_pipeline_run`]
+/// or [`snout_face_pipeline_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_pipeline_run(
+    pipeline: *mut FacePipeline,
+    frame: *const Frame,
+) -> *const f32 {
+    clear_last_error();
+
+    if pipeline.is_null() || frame.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null();
+    }
+
+    let pipeline = unsafe { &mut *pipeline };
+    let frame = unsafe { &*frame };
+
+    match pipeline.run(frame) {
+        Ok(Some(weights)) => weights.as_ptr(),
+        Ok(None) => std::ptr::null(),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null()
+        }
+    }
+}
+
+/// Free the face pipeline.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_pipeline_free(pipeline: *mut FacePipeline) {
+    clear_last_error();
+
+    if pipeline.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(pipeline));
     }
 }

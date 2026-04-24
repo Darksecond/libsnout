@@ -16,7 +16,7 @@ pub enum PipelineError {
     Inference(String),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 #[repr(C)]
 pub struct FilterParameters {
     pub enable: bool,

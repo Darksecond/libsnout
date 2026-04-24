@@ -9,13 +9,13 @@ use burn::tensor::Int;
 
 use super::eye_net::{EyeNet, PER_EYE_CHANNELS, PER_EYE_OUTPUTS};
 
-pub const HISTORY_LEN: usize = PER_EYE_CHANNELS;
-pub const HISTORY_BASE: usize = HISTORY_LEN - 1;
-pub const INPUT_CHANNELS: usize = 2 * PER_EYE_CHANNELS;
-pub const LABEL_DIMS: usize = 2 * PER_EYE_OUTPUTS;
+pub(crate) const HISTORY_LEN: usize = PER_EYE_CHANNELS;
+pub(crate) const HISTORY_BASE: usize = HISTORY_LEN - 1;
+pub(crate) const INPUT_CHANNELS: usize = 2 * PER_EYE_CHANNELS;
+pub(crate) const LABEL_DIMS: usize = 2 * PER_EYE_OUTPUTS;
 
-pub const LEFT_CHANNELS: [i64; PER_EYE_CHANNELS] = [0, 2, 4, 6];
-pub const RIGHT_CHANNELS: [i64; PER_EYE_CHANNELS] = [1, 3, 5, 7];
+pub(crate) const LEFT_CHANNELS: [i64; PER_EYE_CHANNELS] = [0, 2, 4, 6];
+pub(crate) const RIGHT_CHANNELS: [i64; PER_EYE_CHANNELS] = [1, 3, 5, 7];
 
 #[derive(Module, Debug)]
 pub struct DualEyeNet<B: Backend> {

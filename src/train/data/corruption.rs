@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use image::GrayImage;
 
-pub const DEFAULT_THRESHOLD: f32 = 0.022669;
-pub const DEFAULT_ADAPTATION_WINDOW: usize = 100;
+const DEFAULT_THRESHOLD: f32 = 0.022669;
+const DEFAULT_ADAPTATION_WINDOW: usize = 100;
 
 const ADAPTIVE_MIN_SAMPLES: usize = 20;
 const ADAPTIVE_LOW_FACTOR: f32 = 0.5;

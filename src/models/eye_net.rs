@@ -3,10 +3,10 @@ use burn::nn::pool::{MaxPool2d, MaxPool2dConfig};
 use burn::nn::{Linear, LinearConfig, PaddingConfig2d, Relu, Sigmoid};
 use burn::prelude::*;
 
-pub const IMAGE_HEIGHT: usize = 128;
-pub const IMAGE_WIDTH: usize = 128;
-pub const PER_EYE_CHANNELS: usize = 4;
-pub const PER_EYE_OUTPUTS: usize = 3;
+pub(crate) const IMAGE_HEIGHT: usize = 128;
+pub(crate) const IMAGE_WIDTH: usize = 128;
+pub(crate) const PER_EYE_CHANNELS: usize = 4;
+pub(crate) const PER_EYE_OUTPUTS: usize = 3;
 
 const CONV_WIDTHS: [usize; 6] = [28, 42, 63, 94, 141, 212];
 const EMBEDDING_DIMS: usize = CONV_WIDTHS[5];
