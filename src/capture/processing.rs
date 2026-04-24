@@ -7,15 +7,19 @@ use crate::capture::Frame;
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Crop {
-    pub top_left: (f32, f32),
-    pub bottom_right: (f32, f32),
+    pub top: f32,
+    pub left: f32,
+    pub bottom: f32,
+    pub right: f32,
 }
 
 impl Crop {
     pub const fn full() -> Self {
         Self {
-            top_left: (0., 0.),
-            bottom_right: (1., 1.),
+            top: 0.,
+            left: 0.,
+            bottom: 1.,
+            right: 1.,
         }
     }
 }
