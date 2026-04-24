@@ -53,6 +53,7 @@ impl EyeShape {
 pub struct EyeCalibrator {
     bounds: Vec<Bounds>,
     weights: Vec<ShapeWeight<EyeShape>>,
+    link_eyes: bool,
 }
 
 impl EyeCalibrator {
@@ -64,7 +65,16 @@ impl EyeCalibrator {
         Self {
             bounds,
             weights: default_weights(),
+            link_eyes: true,
         }
+    }
+
+    pub fn link_eyes(&self) -> bool {
+        self.link_eyes
+    }
+
+    pub fn set_link_eyes(&mut self, link_eyes: bool) {
+        self.link_eyes = link_eyes;
     }
 
     pub fn bounds(&self, shape: EyeShape) -> Bounds {
@@ -100,8 +110,18 @@ impl EyeCalibrator {
 
         let eye_y = (left_pitch * left_lid + right_pitch * right_lid) / (left_lid + right_lid);
 
-        let left_eye_yaw_corrected = right_yaw * (1. - left_lid) + left_yaw * left_lid;
-        let right_eye_yaw_corrected = left_yaw * (1. - right_lid) + right_yaw * right_lid;
+        let mut left_eye_yaw_corrected = right_yaw * (1. - left_lid) + left_yaw * left_lid;
+        let mut right_eye_yaw_corrected = left_yaw * (1. - right_lid) + right_yaw * right_lid;
+
+        if self.link_eyes {
+            let raw_convergence = (right_eye_yaw_corrected - left_eye_yaw_corrected) / 2.;
+            let convergence = raw_convergence.max(0.);
+
+            let average_yaw = (right_eye_yaw_corrected + left_eye_yaw_corrected) / 2.;
+
+            left_eye_yaw_corrected = average_yaw - convergence;
+            right_eye_yaw_corrected = average_yaw + convergence;
+        }
 
         target[0] = right_eye_yaw_corrected;
         target[1] = eye_y;
