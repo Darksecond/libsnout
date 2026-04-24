@@ -23,6 +23,8 @@ cargo build
 
 ```sh
 cargo install --force cbindgen
+
+export PATH=$PATH:/home/proto/.cargo/bin
 cbindgen --config cbindgen.toml --output snout.h
 ```
 
