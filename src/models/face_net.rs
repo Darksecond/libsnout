@@ -1,8 +1,10 @@
-pub mod face {
+mod inner {
+    #![allow(dead_code)]
+
     include!(concat!(
         env!("OUT_DIR"),
         "/faceModel/simplifiedFaceModel.rs"
     ));
 }
 
-pub mod eye;
+pub use inner::Model as FaceNet;

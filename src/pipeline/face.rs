@@ -5,10 +5,9 @@ use burn::backend::wgpu::WgpuDevice;
 use crate::{
     calibration::FaceShape,
     capture::Frame,
-    nn::inference::FaceInference,
     pipeline::{
         FilterParameters, PipelineError,
-        internal::{FrameToBurnTensor, one_euro_filter::OneEuroFilter},
+        internal::{FrameToBurnTensor, inference::FaceInference, one_euro_filter::OneEuroFilter},
     },
 };
 

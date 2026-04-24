@@ -41,6 +41,7 @@ impl EyeTracker {
 
     pub fn track(&mut self, transport: &mut OscTransport) {
         let Ok((left, right)) = self.camera.get_frames() else {
+            println!("Failed to get eye frames");
             return;
         };
 

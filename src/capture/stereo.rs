@@ -54,8 +54,8 @@ impl StereoCamera {
                 let height = sbs_buffer.height() as usize;
 
                 let source: &[u8] = sbs_buffer.as_ref();
-                let left_destination = self.left_frame.image.as_mut();
-                let right_destination = self.right_frame.image.as_mut();
+                let left_destination: &mut [u8] = self.left_frame.image.as_mut();
+                let right_destination: &mut [u8] = self.right_frame.image.as_mut();
 
                 for y in 0..height {
                     let row = &source[y * full_width..(y + 1) * full_width];

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/snout-frontend"]
+members = ["crates/snout-frontend", "crates/snout-train"]
 
 [package]
 name = "snout"
@@ -12,8 +12,11 @@ imageproc = { version = "0.26.1", default-features = false }
 rosc = "0.11.4"
 thiserror = "2.0.18"
 v4l = "0.14.0"
-burn = { version = "0.21.0-pre.3", features = ["store", "wgpu"] }
+burn = { version = "0.21.0-pre.3", features = ["store", "wgpu", "autodiff", "dataset"] }
 burn-store = "=0.21.0-pre.3"
+byteorder = "1.5.0"
+rand = "0.8"
+tracing = "0.1"
 
 [build-dependencies]
 burn-onnx = { version = "0.21.0-pre.3" }

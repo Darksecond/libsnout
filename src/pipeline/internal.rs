@@ -1,4 +1,5 @@
 pub mod eye_compositor;
+pub mod inference;
 pub mod one_euro_filter;
 
 use crate::{capture::Frame, pipeline::internal::eye_compositor::CompositeImage};

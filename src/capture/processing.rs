@@ -82,7 +82,7 @@ impl FramePreprocessor {
         {
             let brightness = self.config.brightness;
             let src = source.as_slice();
-            let dst = self.frame.image.as_mut();
+            let dst: &mut [u8] = self.frame.image.as_mut();
             for (dst, &src) in dst.iter_mut().zip(src.iter()) {
                 *dst = (src as f32 * brightness).clamp(0.0, 255.0) as u8
             }

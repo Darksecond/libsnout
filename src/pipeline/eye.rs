@@ -5,11 +5,11 @@ use burn::backend::wgpu::WgpuDevice;
 use crate::{
     calibration::EyeShape,
     capture::Frame,
-    nn::inference::EyeInference,
     pipeline::{
         FilterParameters, PipelineError,
         internal::{
-            FrameToBurnTensor, eye_compositor::EyeCompositor, one_euro_filter::OneEuroFilter,
+            FrameToBurnTensor, eye_compositor::EyeCompositor, inference::EyeInference,
+            one_euro_filter::OneEuroFilter,
         },
     },
 };

@@ -1,5 +1,5 @@
 use crate::{
-    nn::models::{eye::MultiChad, face::Model as FaceModel},
+    models::{dual_eye_net::DualEyeNet, face_net::FaceNet},
     pipeline::PipelineError,
 };
 use std::path::Path;
@@ -11,14 +11,14 @@ use burn::{
 use burn_store::{BurnpackStore, ModuleSnapshot};
 
 pub struct FaceInference {
-    model: FaceModel<Wgpu>,
+    model: FaceNet<Wgpu>,
     output: Vec<f32>,
 }
 
 impl FaceInference {
     pub fn new(device: &WgpuDevice, path: impl AsRef<Path>) -> Result<Self, PipelineError> {
         let model = {
-            let mut model = FaceModel::new(device);
+            let mut model = FaceNet::new(device);
             let mut store = BurnpackStore::from_file(path);
             model
                 .load_from(&mut store)
@@ -46,13 +46,13 @@ impl FaceInference {
 }
 
 pub struct EyeInference {
-    model: MultiChad<Wgpu>,
+    model: DualEyeNet<Wgpu>,
     output: Vec<f32>,
 }
 
 impl EyeInference {
     pub fn new(device: &WgpuDevice, path: impl AsRef<Path>) -> Result<Self, PipelineError> {
-        let model = MultiChad::load_safetensors(path, device)
+        let model = DualEyeNet::load_safetensors(path, device)
             .map_err(|e| PipelineError::Load(e.to_string()))?;
 
         Ok(Self {
