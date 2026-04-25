@@ -56,6 +56,8 @@ typedef enum SnoutError {
 
 typedef struct CameraSource CameraSource;
 
+typedef struct EyePipeline EyePipeline;
+
 typedef struct FacePipeline FacePipeline;
 
 typedef struct Frame Frame;
@@ -106,6 +108,11 @@ typedef struct FilterParameters {
  * The number of face shape weights returned by [`snout_face_pipeline_run`].
  */
 extern const uintptr_t SNOUT_FACE_SHAPE_COUNT;
+
+/**
+ * The number of eye shape weights returned by [`snout_eye_pipeline_run`].
+ */
+extern const uintptr_t SNOUT_EYE_SHAPE_COUNT;
 
 /**
  * Get the last error that occurred.
@@ -302,5 +309,47 @@ const float *snout_face_pipeline_run(struct FacePipeline *pipeline, const struct
  * Free the face pipeline.
  */
 void snout_face_pipeline_free(struct FacePipeline *pipeline);
+
+/**
+ * Create a new eye pipeline, loading the model from the given path.
+ *
+ * Returns a pointer to the pipeline, or null if the model could not be loaded.
+ * Check [`snout_last_error`] for details.
+ */
+struct EyePipeline *snout_eye_pipeline_new(const char *path);
+
+/**
+ * Get the current filter parameters of the eye pipeline.
+ *
+ * Returns a copy of the current filter parameters.
+ */
+struct FilterParameters snout_eye_pipeline_filter(const struct EyePipeline *pipeline);
+
+/**
+ * Set the filter parameters of the eye pipeline.
+ */
+void snout_eye_pipeline_set_filter(struct EyePipeline *pipeline,
+                                   struct FilterParameters parameters);
+
+/**
+ * Run the eye pipeline on a pair of stereo frames.
+ *
+ * Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+ *
+ * A returned null either indicates an error, or that the pipeline was not ready yet.
+ * Check [`snout_last_error`] to determine which.
+ * It will be `SnoutError_Ok` if the pipeline was not ready yet.
+ *
+ * The returned pointer is valid until the next call to [`snout_eye_pipeline_run`]
+ * or [`snout_eye_pipeline_free`].
+ */
+const float *snout_eye_pipeline_run(struct EyePipeline *pipeline,
+                                    const struct Frame *left,
+                                    const struct Frame *right);
+
+/**
+ * Free the eye pipeline.
+ */
+void snout_eye_pipeline_free(struct EyePipeline *pipeline);
 
 #endif  /* snout_h */

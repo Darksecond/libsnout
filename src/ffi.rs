@@ -7,7 +7,7 @@ use crate::capture::{
     processing::{FramePreprocessor, PreprocessConfig, PreprocessError},
 };
 use crate::capture::{Frame, StereoCamera};
-use crate::pipeline::{FacePipeline, FilterParameters, PipelineError};
+use crate::pipeline::{EyePipeline, FacePipeline, FilterParameters, PipelineError};
 
 // TODO: thread_local!
 static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
@@ -631,6 +631,127 @@ pub extern "C" fn snout_face_pipeline_run(
 /// Free the face pipeline.
 #[unsafe(no_mangle)]
 pub extern "C" fn snout_face_pipeline_free(pipeline: *mut FacePipeline) {
+    clear_last_error();
+
+    if pipeline.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(pipeline));
+    }
+}
+
+/// The number of eye shape weights returned by [`snout_eye_pipeline_run`].
+#[unsafe(no_mangle)]
+pub static SNOUT_EYE_SHAPE_COUNT: usize = 6;
+
+/// Create a new eye pipeline, loading the model from the given path.
+///
+/// Returns a pointer to the pipeline, or null if the model could not be loaded.
+/// Check [`snout_last_error`] for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_pipeline_new(path: *const c_char) -> *mut EyePipeline {
+    clear_last_error();
+
+    if path.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null_mut();
+    }
+
+    let path = unsafe { std::ffi::CStr::from_ptr(path) };
+    let path = match path.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    match EyePipeline::new(path) {
+        Ok(pipeline) => Box::into_raw(Box::new(pipeline)),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Get the current filter parameters of the eye pipeline.
+///
+/// Returns a copy of the current filter parameters.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_pipeline_filter(pipeline: *const EyePipeline) -> FilterParameters {
+    clear_last_error();
+
+    if pipeline.is_null() {
+        set_null_pointer_error();
+        return FilterParameters::default();
+    }
+
+    let pipeline = unsafe { &*pipeline };
+
+    pipeline.filter()
+}
+
+/// Set the filter parameters of the eye pipeline.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_pipeline_set_filter(
+    pipeline: *mut EyePipeline,
+    parameters: FilterParameters,
+) {
+    clear_last_error();
+
+    if pipeline.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let pipeline = unsafe { &mut *pipeline };
+
+    pipeline.set_filter(parameters);
+}
+
+/// Run the eye pipeline on a pair of stereo frames.
+///
+/// Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+///
+/// A returned null either indicates an error, or that the pipeline was not ready yet.
+/// Check [`snout_last_error`] to determine which.
+/// It will be `SnoutError_Ok` if the pipeline was not ready yet.
+///
+/// The returned pointer is valid until the next call to [`snout_eye_pipeline_run`]
+/// or [`snout_eye_pipeline_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_pipeline_run(
+    pipeline: *mut EyePipeline,
+    left: *const Frame,
+    right: *const Frame,
+) -> *const f32 {
+    clear_last_error();
+
+    if pipeline.is_null() || left.is_null() || right.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null();
+    }
+
+    let pipeline = unsafe { &mut *pipeline };
+    let left = unsafe { &*left };
+    let right = unsafe { &*right };
+
+    match pipeline.run(left, right) {
+        Ok(Some(weights)) => weights.as_ptr(),
+        Ok(None) => std::ptr::null(),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null()
+        }
+    }
+}
+
+/// Free the eye pipeline.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_pipeline_free(pipeline: *mut EyePipeline) {
     clear_last_error();
 
     if pipeline.is_null() {
