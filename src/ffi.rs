@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 use std::{cell::RefCell, os::raw::c_char};
 
+use crate::calibration::{Bounds, FaceShape, ManualFaceCalibrator};
 use crate::capture::{
     CameraError, MonoCamera,
     discovery::{self, CameraInfo, CameraSource},
@@ -596,6 +597,7 @@ pub extern "C" fn snout_face_pipeline_set_filter(
 /// Run the face pipeline on a frame.
 ///
 /// Returns a pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+/// The returned array can be indexed using the [`FaceShape`] enum variants cast to an integer.
 ///
 /// A returned null either indicates an error, or that the pipeline was not ready yet.
 /// Check [`snout_get_last_error`] to determine which.
@@ -715,6 +717,7 @@ pub extern "C" fn snout_eye_pipeline_set_filter(
 /// Run the eye pipeline on a pair of stereo frames.
 ///
 /// Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+/// The returned array can be indexed using the [`EyeShape`] enum variants cast to an integer.
 ///
 /// A returned null either indicates an error, or that the pipeline was not ready yet.
 /// Check [`snout_last_error`] to determine which.
@@ -760,5 +763,91 @@ pub extern "C" fn snout_eye_pipeline_free(pipeline: *mut EyePipeline) {
 
     unsafe {
         drop(Box::from_raw(pipeline));
+    }
+}
+
+/// Create a new face calibrator.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_calibrator_new() -> *mut ManualFaceCalibrator {
+    clear_last_error();
+
+    Box::into_raw(Box::new(ManualFaceCalibrator::new()))
+}
+
+/// Get the calibration bounds for a face shape.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_calibrator_bounds(
+    calibrator: *const ManualFaceCalibrator,
+    shape: FaceShape,
+) -> Bounds {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        set_null_pointer_error();
+        return Bounds::new();
+    }
+
+    let calibrator = unsafe { &*calibrator };
+
+    calibrator.bounds(shape)
+}
+
+/// Set the calibration bounds for a face shape.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_calibrator_set_bounds(
+    calibrator: *mut ManualFaceCalibrator,
+    shape: FaceShape,
+    bounds: Bounds,
+) {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let calibrator = unsafe { &mut *calibrator };
+
+    calibrator.set_bounds(shape, bounds);
+}
+
+/// Calibrate raw face weights.
+///
+/// `weights` must point to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+///
+/// Returns a pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats, or null if an error occurred.
+/// The returned slice can be indexed using the [`FaceShape`] enum variants cast to an integer.
+///
+/// The returned pointer is valid until the next call to [`snout_face_calibrator_calibrate`]
+/// or [`snout_face_calibrator_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_calibrator_calibrate(
+    calibrator: *mut ManualFaceCalibrator,
+    weights: *const f32,
+) -> *const f32 {
+    clear_last_error();
+
+    if calibrator.is_null() || weights.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null();
+    }
+
+    let calibrator = unsafe { &mut *calibrator };
+    let weights = unsafe { std::slice::from_raw_parts(weights, SNOUT_FACE_SHAPE_COUNT) };
+
+    calibrator.calibrate(weights).as_ptr()
+}
+
+/// Free the face calibrator.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_calibrator_free(calibrator: *mut ManualFaceCalibrator) {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(calibrator));
     }
 }

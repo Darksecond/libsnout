@@ -3,7 +3,7 @@ use std::net::{ToSocketAddrs, UdpSocket};
 use rosc::{OscMessage, OscPacket, OscType, encoder};
 use thiserror::Error;
 
-use crate::calibration::{EyeShape, FaceShape, ShapeWeight};
+use crate::calibration::{EyeShape, FaceShape, Weights};
 
 pub struct OscTransport {
     socket: UdpSocket,
@@ -55,26 +55,18 @@ impl BabbleEmitter {
         Self {}
     }
 
-    pub fn process_face(
-        &mut self,
-        weights: &[ShapeWeight<FaceShape>],
-        transport: &mut OscTransport,
-    ) {
-        for weight in weights {
+    pub fn process_face(&mut self, weights: Weights<FaceShape>, transport: &mut OscTransport) {
+        for (shape, value) in weights.iter() {
             let msg = OscMessage {
-                addr: weight.shape.to_babble().to_string(),
-                args: vec![OscType::Float(weight.value)],
+                addr: shape.to_babble().to_string(),
+                args: vec![OscType::Float(value)],
             };
 
             transport.send(msg);
         }
     }
 
-    pub fn process_eyes(
-        &mut self,
-        weights: &[ShapeWeight<EyeShape>],
-        transport: &mut OscTransport,
-    ) {
+    pub fn process_eyes(&mut self, weights: Weights<EyeShape>, transport: &mut OscTransport) {
         let _ = (weights, transport);
         todo!()
     }
@@ -89,16 +81,12 @@ impl EtvrEmitter {
         Self {}
     }
 
-    pub fn process_eyes(
-        &mut self,
-        weights: &[ShapeWeight<EyeShape>],
-        transport: &mut OscTransport,
-    ) {
-        for weight in weights {
-            let value = weight.shape.to_etvr_value(weight.value);
+    pub fn process_eyes(&mut self, weights: Weights<EyeShape>, transport: &mut OscTransport) {
+        for (shape, value) in weights.iter() {
+            let value = shape.to_etvr_value(value);
 
             let msg = OscMessage {
-                addr: weight.shape.to_etvr().to_string(),
+                addr: shape.to_etvr().to_string(),
                 args: vec![OscType::Float(value)],
             };
 
@@ -116,11 +104,7 @@ impl NativeEmitter {
         todo!()
     }
 
-    pub fn process_eyes(
-        &mut self,
-        weights: &[ShapeWeight<EyeShape>],
-        transport: &mut OscTransport,
-    ) {
+    pub fn process_eyes(&mut self, weights: Weights<EyeShape>, transport: &mut OscTransport) {
         let _ = (weights, transport);
         todo!()
     }

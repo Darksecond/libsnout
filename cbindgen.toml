@@ -1,7 +1,7 @@
 
 language = "c"
 include_guard = "snout_h"
-cpp_compat = false
+cpp_compat = true
 
 [enum]
 prefix_with_name = true

@@ -54,6 +54,61 @@ typedef enum SnoutError {
   SnoutError_PipelineInference,
 } SnoutError;
 
+enum FaceShape
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  FaceShape_CheekPuffLeft,
+  FaceShape_CheekPuffRight,
+  FaceShape_CheekSuckLeft,
+  FaceShape_CheekSuckRight,
+  FaceShape_JawOpen,
+  FaceShape_JawForward,
+  FaceShape_JawLeft,
+  FaceShape_JawRight,
+  FaceShape_NoseSneerLeft,
+  FaceShape_NoseSneerRight,
+  FaceShape_MouthFunnel,
+  FaceShape_MouthPucker,
+  FaceShape_MouthLeft,
+  FaceShape_MouthRight,
+  FaceShape_MouthRollUpper,
+  FaceShape_MouthRollLower,
+  FaceShape_MouthShrugUpper,
+  FaceShape_MouthShrugLower,
+  FaceShape_MouthClose,
+  FaceShape_MouthSmileLeft,
+  FaceShape_MouthSmileRight,
+  FaceShape_MouthFrownLeft,
+  FaceShape_MouthFrownRight,
+  FaceShape_MouthDimpleLeft,
+  FaceShape_MouthDimpleRight,
+  FaceShape_MouthUpperUpLeft,
+  FaceShape_MouthUpperUpRight,
+  FaceShape_MouthLowerDownLeft,
+  FaceShape_MouthLowerDownRight,
+  FaceShape_MouthPressLeft,
+  FaceShape_MouthPressRight,
+  FaceShape_MouthStretchLeft,
+  FaceShape_MouthStretchRight,
+  FaceShape_TongueOut,
+  FaceShape_TongueUp,
+  FaceShape_TongueDown,
+  FaceShape_TongueLeft,
+  FaceShape_TongueRight,
+  FaceShape_TongueRoll,
+  FaceShape_TongueBendDown,
+  FaceShape_TongueCurlUp,
+  FaceShape_TongueSquish,
+  FaceShape_TongueFlat,
+  FaceShape_TongueTwistLeft,
+  FaceShape_TongueTwistRight,
+};
+#ifndef __cplusplus
+typedef uint8_t FaceShape;
+#endif // __cplusplus
+
 typedef struct CameraSource CameraSource;
 
 typedef struct EyePipeline EyePipeline;
@@ -63,6 +118,8 @@ typedef struct FacePipeline FacePipeline;
 typedef struct Frame Frame;
 
 typedef struct FramePreprocessor FramePreprocessor;
+
+typedef struct ManualFaceCalibrator ManualFaceCalibrator;
 
 typedef struct MonoCamera MonoCamera;
 
@@ -103,6 +160,17 @@ typedef struct FilterParameters {
   float min_cutoff;
   float beta;
 } FilterParameters;
+
+typedef struct Bounds {
+  float min;
+  float max;
+  float lower;
+  float upper;
+} Bounds;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 
 /**
  * The number of face shape weights returned by [`snout_face_pipeline_run`].
@@ -295,6 +363,7 @@ void snout_face_pipeline_set_filter(struct FacePipeline *pipeline,
  * Run the face pipeline on a frame.
  *
  * Returns a pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+ * The returned array can be indexed using the [`FaceShape`] enum variants cast to an integer.
  *
  * A returned null either indicates an error, or that the pipeline was not ready yet.
  * Check [`snout_get_last_error`] to determine which.
@@ -335,6 +404,7 @@ void snout_eye_pipeline_set_filter(struct EyePipeline *pipeline,
  * Run the eye pipeline on a pair of stereo frames.
  *
  * Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+ * The returned array can be indexed using the [`EyeShape`] enum variants cast to an integer.
  *
  * A returned null either indicates an error, or that the pipeline was not ready yet.
  * Check [`snout_last_error`] to determine which.
@@ -351,5 +421,46 @@ const float *snout_eye_pipeline_run(struct EyePipeline *pipeline,
  * Free the eye pipeline.
  */
 void snout_eye_pipeline_free(struct EyePipeline *pipeline);
+
+/**
+ * Create a new face calibrator.
+ */
+struct ManualFaceCalibrator *snout_face_calibrator_new(void);
+
+/**
+ * Get the calibration bounds for a face shape.
+ */
+struct Bounds snout_face_calibrator_bounds(const struct ManualFaceCalibrator *calibrator,
+                                           FaceShape shape);
+
+/**
+ * Set the calibration bounds for a face shape.
+ */
+void snout_face_calibrator_set_bounds(struct ManualFaceCalibrator *calibrator,
+                                      FaceShape shape,
+                                      struct Bounds bounds);
+
+/**
+ * Calibrate raw face weights.
+ *
+ * `weights` must point to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+ *
+ * Returns a pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats, or null if an error occurred.
+ * The returned slice can be indexed using the [`FaceShape`] enum variants cast to an integer.
+ *
+ * The returned pointer is valid until the next call to [`snout_face_calibrator_calibrate`]
+ * or [`snout_face_calibrator_free`].
+ */
+const float *snout_face_calibrator_calibrate(struct ManualFaceCalibrator *calibrator,
+                                             const float *weights);
+
+/**
+ * Free the face calibrator.
+ */
+void snout_face_calibrator_free(struct ManualFaceCalibrator *calibrator);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
 #endif  /* snout_h */

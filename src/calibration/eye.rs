@@ -1,4 +1,4 @@
-use crate::calibration::{Bounds, ShapeWeight};
+use crate::calibration::{Bounds, Shape, Weights};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -11,14 +11,32 @@ pub enum EyeShape {
     RightEyeLid,
 }
 
-impl EyeShape {
-    pub(crate) const fn from(value: usize) -> Self {
+impl From<EyeShape> for usize {
+    fn from(value: EyeShape) -> Self {
+        value as usize
+    }
+}
+
+impl From<usize> for EyeShape {
+    fn from(value: usize) -> Self {
         assert!(value < Self::count());
 
         unsafe { std::mem::transmute(value as u8) }
     }
+}
 
-    pub(crate) const fn count() -> usize {
+impl Shape for EyeShape {
+    fn count() -> usize {
+        const {
+            assert!(Self::RightEyeLid as usize + 1 == 6);
+        }
+
+        Self::RightEyeLid as usize + 1
+    }
+}
+
+impl EyeShape {
+    pub const fn count() -> usize {
         const {
             assert!(Self::RightEyeLid as usize + 1 == 6);
         }
@@ -52,7 +70,7 @@ impl EyeShape {
 /// Only the LeftEyeLid and RightEyeLid bounds are respected.
 pub struct EyeCalibrator {
     bounds: Vec<Bounds>,
-    weights: Vec<ShapeWeight<EyeShape>>,
+    weights: Vec<f32>,
     link_eyes: bool,
 }
 
@@ -64,7 +82,7 @@ impl EyeCalibrator {
 
         Self {
             bounds,
-            weights: default_weights(),
+            weights: vec![0.0; EyeShape::count()],
             link_eyes: true,
         }
     }
@@ -85,15 +103,15 @@ impl EyeCalibrator {
         self.bounds[shape as usize] = bounds;
     }
 
-    pub fn calibrate(&mut self, weights: &[f32]) -> &[ShapeWeight<EyeShape>] {
+    pub fn calibrate(&mut self, weights: &[f32]) -> Weights<'_, EyeShape> {
         let mut remapped = [0.; EyeShape::count()];
         self.remap(weights, &mut remapped);
 
         for (weight, value) in self.weights.iter_mut().zip(remapped) {
-            weight.value = value;
+            *weight = value;
         }
 
-        &self.weights
+        Weights::new(&self.weights)
     }
 
     fn remap(&self, source: &[f32], target: &mut [f32]) {
@@ -131,17 +149,4 @@ impl EyeCalibrator {
         target[4] = eye_y;
         target[5] = self.bounds[5].remap(left_lid);
     }
-}
-
-fn default_weights() -> Vec<ShapeWeight<EyeShape>> {
-    let mut weights = Vec::with_capacity(EyeShape::count());
-
-    for index in 0..EyeShape::count() {
-        weights.push(ShapeWeight {
-            shape: EyeShape::from(index),
-            value: 0.0,
-        })
-    }
-
-    weights
 }

@@ -1,4 +1,4 @@
-use crate::calibration::{Bounds, ShapeWeight};
+use crate::calibration::{Bounds, Shape, Weights};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -51,6 +51,14 @@ pub enum FaceShape {
 }
 
 impl FaceShape {
+    pub const fn count() -> usize {
+        const {
+            assert!(Self::TongueTwistRight as usize + 1 == 45);
+        }
+
+        Self::TongueTwistRight as usize + 1
+    }
+
     pub(crate) fn to_babble(self) -> &'static str {
         match self {
             FaceShape::CheekPuffLeft => "/cheekPuffLeft",
@@ -102,14 +110,22 @@ impl FaceShape {
     }
 }
 
-impl FaceShape {
-    pub(crate) const fn from(value: usize) -> Self {
+impl From<FaceShape> for usize {
+    fn from(value: FaceShape) -> Self {
+        value as usize
+    }
+}
+
+impl From<usize> for FaceShape {
+    fn from(value: usize) -> Self {
         assert!(value < Self::count());
 
         unsafe { std::mem::transmute(value as u8) }
     }
+}
 
-    pub(crate) const fn count() -> usize {
+impl Shape for FaceShape {
+    fn count() -> usize {
         const {
             assert!(Self::TongueTwistRight as usize + 1 == 45);
         }
@@ -120,7 +136,7 @@ impl FaceShape {
 
 pub struct ManualFaceCalibrator {
     bounds: Vec<Bounds>,
-    weights: Vec<ShapeWeight<FaceShape>>,
+    weights: Vec<f32>,
 }
 
 impl ManualFaceCalibrator {
@@ -139,25 +155,16 @@ impl ManualFaceCalibrator {
         self.bounds[shape as usize] = bounds;
     }
 
-    pub fn calibrate(&mut self, weights: &[f32]) -> &[ShapeWeight<FaceShape>] {
+    pub fn calibrate(&mut self, weights: &[f32]) -> Weights<'_, FaceShape> {
         // Update weights with new values
         for ((weight, value), bounds) in self.weights.iter_mut().zip(weights).zip(&self.bounds) {
-            weight.value = bounds.remap(*value);
+            *weight = bounds.remap(*value);
         }
 
-        &self.weights
+        Weights::new(&self.weights)
     }
 }
 
-fn default_weights() -> Vec<ShapeWeight<FaceShape>> {
-    let mut weights = Vec::with_capacity(FaceShape::count());
-
-    for index in 0..FaceShape::count() {
-        weights.push(ShapeWeight {
-            shape: FaceShape::from(index),
-            value: 0.0,
-        })
-    }
-
-    weights
+fn default_weights() -> Vec<f32> {
+    vec![0.0; FaceShape::count()]
 }
