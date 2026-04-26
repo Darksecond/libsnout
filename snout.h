@@ -117,12 +117,38 @@ enum FaceShape
 typedef uint8_t FaceShape;
 #endif // __cplusplus
 
+enum EyeShape
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  EyeShape_LeftEyePitch,
+  EyeShape_LeftEyeYaw,
+  EyeShape_LeftEyeLid,
+  EyeShape_RightEyePitch,
+  EyeShape_RightEyeYaw,
+  EyeShape_RightEyeLid,
+};
+#ifndef __cplusplus
+typedef uint8_t EyeShape;
+#endif // __cplusplus
+
 /**
  * Identifies a camera device and how to open it.
  */
 typedef struct CameraSource CameraSource;
 
+/**
+ * Calibrator for eye shapes.
+ *
+ * This will calibrate the raw values out of the pipeline.
+ * Only the LeftEyeLid and RightEyeLid bounds are respected.
+ */
+typedef struct EyeCalibrator EyeCalibrator;
+
 typedef struct EyePipeline EyePipeline;
+
+typedef struct EyeTracker EyeTracker;
 
 typedef struct FacePipeline FacePipeline;
 
@@ -201,6 +227,36 @@ typedef struct SnoutFaceTrackerFields {
   struct FacePipeline *pipeline;
   struct ManualFaceCalibrator *calibrator;
 } SnoutFaceTrackerFields;
+
+typedef struct SnoutEyeReport {
+  /**
+   * The raw left frame.
+   */
+  const struct Frame *left_raw_frame;
+  /**
+   * The raw right frame.
+   */
+  const struct Frame *right_raw_frame;
+  /**
+   * The left frame after preprocessing.
+   */
+  const struct Frame *left_processed_frame;
+  /**
+   * The right frame after preprocessing.
+   */
+  const struct Frame *right_processed_frame;
+  /**
+   * A pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats, or null during warmup.
+   */
+  const float *weights;
+} SnoutEyeReport;
+
+typedef struct SnoutEyeTrackerFields {
+  struct FramePreprocessor *left_preprocessor;
+  struct FramePreprocessor *right_preprocessor;
+  struct EyePipeline *pipeline;
+  struct EyeCalibrator *calibrator;
+} SnoutEyeTrackerFields;
 
 #ifdef __cplusplus
 extern "C" {
@@ -500,8 +556,57 @@ const float *snout_face_calibrator_calibrate(struct ManualFaceCalibrator *calibr
 
 /**
  * Free the face calibrator.
+ *
+ * Does nothing if the pointer is null.
  */
 void snout_face_calibrator_free(struct ManualFaceCalibrator *calibrator);
+
+/**
+ * Create a new eye calibrator.
+ */
+struct EyeCalibrator *snout_eye_calibrator_new(void);
+
+/**
+ * Get the calibration bounds for an eye shape.
+ */
+struct Bounds snout_eye_calibrator_bounds(const struct EyeCalibrator *calibrator, EyeShape shape);
+
+/**
+ * Set the calibration bounds for an eye shape.
+ */
+void snout_eye_calibrator_set_bounds(struct EyeCalibrator *calibrator,
+                                     EyeShape shape,
+                                     struct Bounds bounds);
+
+/**
+ * Get whether the eye calibrator links the eyes.
+ */
+bool snout_eye_calibrator_link_eyes(const struct EyeCalibrator *calibrator);
+
+/**
+ * Set whether the eye calibrator links the eyes.
+ */
+void snout_eye_calibrator_set_link_eyes(struct EyeCalibrator *calibrator, bool link_eyes);
+
+/**
+ * Calibrate raw eye weights.
+ *
+ * `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+ *
+ * Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats, or null if an error occurred.
+ * The returned slice can be indexed using the [`EyeShape`] enum variants cast to an integer.
+ *
+ * The returned pointer is valid until the next call to [`snout_eye_calibrator_calibrate`]
+ * or [`snout_eye_calibrator_free`].
+ */
+const float *snout_eye_calibrator_calibrate(struct EyeCalibrator *calibrator, const float *weights);
+
+/**
+ * Free the eye calibrator.
+ *
+ * Does nothing if the pointer is null.
+ */
+void snout_eye_calibrator_free(struct EyeCalibrator *calibrator);
 
 /**
  * Creates a new [`FaceTracker`] from the given model path.
@@ -541,6 +646,47 @@ struct SnoutFaceReport snout_face_tracker_track(struct FaceTracker *tracker);
  * Pointers are valid until [`snout_face_tracker_free`] is called.
  */
 struct SnoutFaceTrackerFields snout_face_tracker_fields(struct FaceTracker *tracker);
+
+/**
+ * Creates a new [`EyeTracker`] from the given model path.
+ *
+ * Returns a null pointer if the path is null or invalid.
+ * See [`snout_last_error`] for details.
+ */
+struct EyeTracker *snout_eye_tracker_new(const char *path);
+
+/**
+ * Drops an [`EyeTracker`] instance created by [`snout_eye_tracker_new`].
+ */
+void snout_eye_tracker_free(struct EyeTracker *tracker);
+
+/**
+ * Set the camera sources for the [`EyeTracker`] instance.
+ *
+ * If both sources are null, the camera will be closed.
+ * If left and right point to the same source, the camera will be opened in side-by-side mode.
+ */
+void snout_eye_tracker_set_source(struct EyeTracker *tracker,
+                                  const struct CameraSource *left,
+                                  const struct CameraSource *right);
+
+/**
+ * Track eyes using the [`EyeTracker`] instance.
+ *
+ * Returns a null report if the tracker is null or an error occurs.
+ * See [`snout_last_error`] for details.
+ *
+ * If the error is [`SnoutError_Ok`], then there was insufficient data or a transient error.
+ */
+struct SnoutEyeReport snout_eye_tracker_track(struct EyeTracker *tracker);
+
+/**
+ * Returns the raw pointers to the [`EyeTracker`] fields.
+ *
+ * This can be used for configuring the tracker.
+ * Pointers are valid until [`snout_eye_tracker_free`] is called.
+ */
+struct SnoutEyeTrackerFields snout_eye_tracker_fields(struct EyeTracker *tracker);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -1,8 +1,7 @@
 use std::sync::Mutex;
 use std::{cell::RefCell, os::raw::c_char};
 
-use crate::calibration::EyeCalibrator;
-use crate::calibration::{Bounds, FaceShape, ManualFaceCalibrator};
+use crate::calibration::{Bounds, EyeCalibrator, EyeShape, FaceShape, ManualFaceCalibrator};
 use crate::capture::{
     CameraError, MonoCamera,
     discovery::{self, CameraInfo, CameraSource},
@@ -892,8 +891,131 @@ pub extern "C" fn snout_face_calibrator_calibrate(
 }
 
 /// Free the face calibrator.
+///
+/// Does nothing if the pointer is null.
 #[unsafe(no_mangle)]
 pub extern "C" fn snout_face_calibrator_free(calibrator: *mut ManualFaceCalibrator) {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(calibrator));
+    }
+}
+
+/// Create a new eye calibrator.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_new() -> *mut EyeCalibrator {
+    clear_last_error();
+
+    Box::into_raw(Box::new(EyeCalibrator::new()))
+}
+
+/// Get the calibration bounds for an eye shape.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_bounds(
+    calibrator: *const EyeCalibrator,
+    shape: EyeShape,
+) -> Bounds {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        set_null_pointer_error();
+        return Bounds::new();
+    }
+
+    let calibrator = unsafe { &*calibrator };
+
+    calibrator.bounds(shape)
+}
+
+/// Set the calibration bounds for an eye shape.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_set_bounds(
+    calibrator: *mut EyeCalibrator,
+    shape: EyeShape,
+    bounds: Bounds,
+) {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let calibrator = unsafe { &mut *calibrator };
+
+    calibrator.set_bounds(shape, bounds);
+}
+
+/// Get whether the eye calibrator links the eyes.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_link_eyes(calibrator: *const EyeCalibrator) -> bool {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        set_null_pointer_error();
+        return false;
+    }
+
+    let calibrator = unsafe { &*calibrator };
+
+    calibrator.link_eyes()
+}
+
+/// Set whether the eye calibrator links the eyes.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_set_link_eyes(
+    calibrator: *mut EyeCalibrator,
+    link_eyes: bool,
+) {
+    clear_last_error();
+
+    if calibrator.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let calibrator = unsafe { &mut *calibrator };
+
+    calibrator.set_link_eyes(link_eyes);
+}
+
+/// Calibrate raw eye weights.
+///
+/// `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+///
+/// Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats, or null if an error occurred.
+/// The returned slice can be indexed using the [`EyeShape`] enum.
+///
+/// The returned pointer is valid until the next call to [`snout_eye_calibrator_calibrate`]
+/// or [`snout_eye_calibrator_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_calibrate(
+    calibrator: *mut EyeCalibrator,
+    weights: *const f32,
+) -> *const f32 {
+    clear_last_error();
+
+    if calibrator.is_null() || weights.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null();
+    }
+
+    let calibrator = unsafe { &mut *calibrator };
+    let weights = unsafe { std::slice::from_raw_parts(weights, SNOUT_EYE_SHAPE_COUNT) };
+
+    calibrator.calibrate(weights).as_ptr()
+}
+
+/// Free the eye calibrator.
+///
+/// Does nothing if the pointer is null.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_calibrator_free(calibrator: *mut EyeCalibrator) {
     clear_last_error();
 
     if calibrator.is_null() {
