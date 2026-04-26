@@ -1,13 +1,16 @@
 use std::sync::Mutex;
 use std::{cell::RefCell, os::raw::c_char};
 
-use crate::calibration::{Bounds, EyeCalibrator, EyeShape, FaceShape, ManualFaceCalibrator};
+use crate::calibration::{
+    Bounds, EyeCalibrator, EyeShape, FaceShape, ManualFaceCalibrator, Weights,
+};
 use crate::capture::{
     CameraError, MonoCamera,
     discovery::{self, CameraInfo, CameraSource},
     processing::{FramePreprocessor, PreprocessConfig, PreprocessError},
 };
 use crate::capture::{Frame, StereoCamera};
+use crate::output::{BabbleEmitter, EtvrEmitter, OscTransport, TransportError};
 use crate::pipeline::{EyePipeline, FacePipeline, FilterParameters, PipelineError};
 use crate::track::TrackerError;
 use crate::track::eye::EyeTracker;
@@ -46,6 +49,19 @@ pub enum SnoutError {
     TrackerOpen,
     /// An internal error occurred during tracking.
     TrackerInternal,
+    /// Failed to bind the transport socket.
+    TransportBind,
+    /// Failed to resolve the transport destination address.
+    TransportResolve,
+}
+
+impl From<TransportError> for SnoutError {
+    fn from(error: TransportError) -> Self {
+        match error {
+            TransportError::Bind => SnoutError::TransportBind,
+            TransportError::Resolve => SnoutError::TransportResolve,
+        }
+    }
 }
 
 impl From<TrackerError> for SnoutError {
@@ -1191,7 +1207,160 @@ pub extern "C" fn snout_face_tracker_fields(tracker: *mut FaceTracker) -> SnoutF
     }
 }
 
-// ── Eye Tracker ──
+/// Create a new UDP OSC transport.
+///
+/// `destination` is a null-terminated string like "127.0.0.1:9000".
+/// Returns null if the socket could not be bound or the address could not be resolved.
+/// See [`snout_last_error`] for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_osc_transport_udp(destination: *const c_char) -> *mut OscTransport {
+    clear_last_error();
+
+    if destination.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null_mut();
+    }
+
+    let destination = unsafe { std::ffi::CStr::from_ptr(destination) };
+    let destination = match destination.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    match OscTransport::udp(destination) {
+        Ok(transport) => Box::into_raw(Box::new(transport)),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Free an OSC transport.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_osc_transport_free(transport: *mut OscTransport) {
+    clear_last_error();
+
+    if transport.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(transport));
+    }
+}
+
+/// Flush the OSC transport.
+///
+/// Check [`snout_last_error`] to see if an error occurred.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_osc_transport_flush(transport: *mut OscTransport) {
+    clear_last_error();
+
+    if transport.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let transport = unsafe { &mut *transport };
+
+    if let Err(e) = transport.flush() {
+        set_last_error(e);
+    }
+}
+
+/// Create a new Babble emitter.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_babble_emitter_new() -> *mut BabbleEmitter {
+    clear_last_error();
+
+    Box::into_raw(Box::new(BabbleEmitter::new()))
+}
+
+/// Free a Babble emitter.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_babble_emitter_free(emitter: *mut BabbleEmitter) {
+    clear_last_error();
+
+    if emitter.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(emitter));
+    }
+}
+
+/// Send face weights via the Babble protocol.
+///
+/// `weights` must point to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_babble_emitter_process_face(
+    emitter: *mut BabbleEmitter,
+    weights: *const f32,
+    transport: *mut OscTransport,
+) {
+    clear_last_error();
+
+    if emitter.is_null() || weights.is_null() || transport.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let emitter = unsafe { &mut *emitter };
+    let weights = unsafe { std::slice::from_raw_parts(weights, SNOUT_FACE_SHAPE_COUNT) };
+    let transport = unsafe { &mut *transport };
+
+    emitter.process_face(Weights::new(weights), transport);
+}
+
+/// Create a new ETVR emitter.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_etvr_emitter_new() -> *mut EtvrEmitter {
+    clear_last_error();
+
+    Box::into_raw(Box::new(EtvrEmitter::new()))
+}
+
+/// Free an ETVR emitter.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_etvr_emitter_free(emitter: *mut EtvrEmitter) {
+    clear_last_error();
+
+    if emitter.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(emitter));
+    }
+}
+
+/// Send eye weights via the ETVR protocol.
+///
+/// `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_etvr_emitter_process_eyes(
+    emitter: *mut EtvrEmitter,
+    weights: *const f32,
+    transport: *mut OscTransport,
+) {
+    clear_last_error();
+
+    if emitter.is_null() || weights.is_null() || transport.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let emitter = unsafe { &mut *emitter };
+    let weights = unsafe { std::slice::from_raw_parts(weights, SNOUT_EYE_SHAPE_COUNT) };
+    let transport = unsafe { &mut *transport };
+
+    emitter.process_eyes(Weights::new(weights), transport);
+}
 
 #[derive(Copy, Clone)]
 #[repr(C)]
