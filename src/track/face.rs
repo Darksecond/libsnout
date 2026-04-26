@@ -27,11 +27,11 @@ pub struct FaceTracker {
 impl FaceTracker {
     pub fn new(model: impl AsRef<Path>) -> Result<Self, TrackerError> {
         Ok(Self {
-            camera: None,
             preprocessor: FramePreprocessor::new(),
             pipeline: FacePipeline::new(model)?,
             calibrator: ManualFaceCalibrator::new(),
 
+            camera: None,
             source: None,
         })
     }
@@ -48,18 +48,8 @@ impl FaceTracker {
     }
 
     pub fn track(&mut self) -> Result<Option<FaceReport<'_>>, TrackerError> {
-        match (self.camera.is_some(), self.source.is_some()) {
-            (_, false) => {
-                self.camera = None;
-                return Ok(None);
-            }
-            (false, true) => {
-                let source = self.source.unwrap();
-                let camera =
-                    MonoCamera::open(source).map_err(|e| TrackerError::Open(e.to_string()))?;
-                self.camera = Some(camera);
-            }
-            (true, true) => {}
+        if !self.ensure_camera()? {
+            return Ok(None);
         }
 
         let camera = self.camera.as_mut().unwrap();
@@ -84,5 +74,18 @@ impl FaceTracker {
             processed_frame,
             weights,
         }))
+    }
+
+    fn ensure_camera(&mut self) -> Result<bool, TrackerError> {
+        if self.camera.is_none() {
+            let Some(source) = self.source else {
+                return Ok(false);
+            };
+
+            self.camera =
+                Some(MonoCamera::open(source).map_err(|e| TrackerError::Open(e.to_string()))?);
+        }
+
+        Ok(true)
     }
 }

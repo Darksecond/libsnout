@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 use std::{cell::RefCell, os::raw::c_char};
 
+use crate::calibration::EyeCalibrator;
 use crate::calibration::{Bounds, FaceShape, ManualFaceCalibrator};
 use crate::capture::{
     CameraError, MonoCamera,
@@ -10,6 +11,7 @@ use crate::capture::{
 use crate::capture::{Frame, StereoCamera};
 use crate::pipeline::{EyePipeline, FacePipeline, FilterParameters, PipelineError};
 use crate::track::TrackerError;
+use crate::track::eye::EyeTracker;
 use crate::track::face::FaceTracker;
 
 // TODO: thread_local!
@@ -1062,6 +1064,190 @@ pub extern "C" fn snout_face_tracker_fields(tracker: *mut FaceTracker) -> SnoutF
 
     SnoutFaceTrackerFields {
         preprocessor: &mut tracker.preprocessor,
+        pipeline: &mut tracker.pipeline,
+        calibrator: &mut tracker.calibrator,
+    }
+}
+
+// ── Eye Tracker ──
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct SnoutEyeReport {
+    /// The raw left frame.
+    pub left_raw_frame: *const Frame,
+    /// The raw right frame.
+    pub right_raw_frame: *const Frame,
+    /// The left frame after preprocessing.
+    pub left_processed_frame: *const Frame,
+    /// The right frame after preprocessing.
+    pub right_processed_frame: *const Frame,
+    /// A pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats, or null during warmup.
+    pub weights: *const f32,
+}
+
+impl SnoutEyeReport {
+    const fn null() -> Self {
+        Self {
+            left_raw_frame: std::ptr::null(),
+            right_raw_frame: std::ptr::null(),
+            left_processed_frame: std::ptr::null(),
+            right_processed_frame: std::ptr::null(),
+            weights: std::ptr::null(),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct SnoutEyeTrackerFields {
+    pub left_preprocessor: *mut FramePreprocessor,
+    pub right_preprocessor: *mut FramePreprocessor,
+    pub pipeline: *mut EyePipeline,
+    pub calibrator: *mut EyeCalibrator,
+}
+
+impl SnoutEyeTrackerFields {
+    const fn null() -> Self {
+        Self {
+            left_preprocessor: std::ptr::null_mut(),
+            right_preprocessor: std::ptr::null_mut(),
+            pipeline: std::ptr::null_mut(),
+            calibrator: std::ptr::null_mut(),
+        }
+    }
+}
+
+/// Creates a new [`EyeTracker`] from the given model path.
+///
+/// Returns a null pointer if the path is null or invalid.
+/// See [`snout_last_error`] for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_tracker_new(path: *const c_char) -> *mut EyeTracker {
+    clear_last_error();
+
+    if path.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null_mut();
+    }
+
+    let path = unsafe { std::ffi::CStr::from_ptr(path) };
+    let path = match path.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    match EyeTracker::new(path) {
+        Ok(tracker) => Box::into_raw(Box::new(tracker)),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Drops an [`EyeTracker`] instance created by [`snout_eye_tracker_new`].
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_tracker_free(tracker: *mut EyeTracker) {
+    clear_last_error();
+
+    if tracker.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(tracker));
+    }
+}
+
+/// Set the camera sources for the [`EyeTracker`] instance.
+///
+/// If both sources are null, the camera will be closed.
+/// If left and right point to the same source, the camera will be opened in side-by-side mode.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_tracker_set_source(
+    tracker: *mut EyeTracker,
+    left: *const CameraSource,
+    right: *const CameraSource,
+) {
+    clear_last_error();
+
+    if tracker.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let tracker = unsafe { &mut *tracker };
+
+    let left = if left.is_null() {
+        None
+    } else {
+        Some(unsafe { *left })
+    };
+
+    let right = if right.is_null() {
+        None
+    } else {
+        Some(unsafe { *right })
+    };
+
+    tracker.set_source(left, right);
+}
+
+/// Track eyes using the [`EyeTracker`] instance.
+///
+/// Returns a null report if the tracker is null or an error occurs.
+/// See [`snout_last_error`] for details.
+///
+/// If the error is [`SnoutError_Ok`], then there was insufficient data or a transient error.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_tracker_track(tracker: *mut EyeTracker) -> SnoutEyeReport {
+    clear_last_error();
+
+    if tracker.is_null() {
+        set_null_pointer_error();
+        return SnoutEyeReport::null();
+    }
+
+    let tracker = unsafe { &mut *tracker };
+
+    match tracker.track() {
+        Ok(Some(report)) => SnoutEyeReport {
+            left_raw_frame: report.left_raw_frame,
+            right_raw_frame: report.right_raw_frame,
+            left_processed_frame: report.left_processed_frame,
+            right_processed_frame: report.right_processed_frame,
+            weights: report.weights.as_ptr(),
+        },
+        Ok(None) => SnoutEyeReport::null(),
+        Err(e) => {
+            set_last_error(e);
+            SnoutEyeReport::null()
+        }
+    }
+}
+
+/// Returns the raw pointers to the [`EyeTracker`] fields.
+///
+/// This can be used for configuring the tracker.
+/// Pointers are valid until [`snout_eye_tracker_free`] is called.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_tracker_fields(tracker: *mut EyeTracker) -> SnoutEyeTrackerFields {
+    clear_last_error();
+
+    if tracker.is_null() {
+        set_null_pointer_error();
+        return SnoutEyeTrackerFields::null();
+    }
+
+    let tracker = unsafe { &mut *tracker };
+
+    SnoutEyeTrackerFields {
+        left_preprocessor: &mut tracker.left_preprocessor,
+        right_preprocessor: &mut tracker.right_preprocessor,
         pipeline: &mut tracker.pipeline,
         calibrator: &mut tracker.calibrator,
     }

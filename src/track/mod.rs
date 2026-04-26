@@ -5,6 +5,7 @@ use crate::{
     pipeline::PipelineError,
 };
 
+pub mod eye;
 pub mod face;
 
 #[derive(Clone, Debug, Error)]
