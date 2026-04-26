@@ -15,6 +15,7 @@ use crate::pipeline::{EyePipeline, FacePipeline, FilterParameters, PipelineError
 use crate::track::TrackerError;
 use crate::track::eye::EyeTracker;
 use crate::track::face::FaceTracker;
+use crate::track::output::Output;
 
 // TODO: thread_local!
 static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
@@ -1541,5 +1542,174 @@ pub extern "C" fn snout_eye_tracker_fields(tracker: *mut EyeTracker) -> SnoutEye
         right_preprocessor: &mut tracker.right_preprocessor,
         pipeline: &mut tracker.pipeline,
         calibrator: &mut tracker.calibrator,
+    }
+}
+
+// ── Output ──
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct SnoutOutputFields {
+    pub transport: *mut OscTransport,
+    pub babble: *mut BabbleEmitter,
+    pub etvr: *mut EtvrEmitter,
+}
+
+impl SnoutOutputFields {
+    const fn null() -> Self {
+        Self {
+            transport: std::ptr::null_mut(),
+            babble: std::ptr::null_mut(),
+            etvr: std::ptr::null_mut(),
+        }
+    }
+}
+
+/// Create a new output with the given destination address.
+///
+/// `destination` is a null-terminated string like "127.0.0.1:9000".
+/// Returns null if the socket could not be bound or the address could not be resolved.
+/// See [`snout_last_error`] for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_new(destination: *const c_char) -> *mut Output {
+    clear_last_error();
+
+    if destination.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null_mut();
+    }
+
+    let destination = unsafe { std::ffi::CStr::from_ptr(destination) };
+    let destination = match destination.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    match Output::new(destination) {
+        Ok(output) => Box::into_raw(Box::new(output)),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Free an output.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_free(output: *mut Output) {
+    clear_last_error();
+
+    if output.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(output));
+    }
+}
+
+/// Set the destination address of the output.
+///
+/// `destination` is a null-terminated string like "127.0.0.1:9000".
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_set_destination(output: *mut Output, destination: *const c_char) {
+    clear_last_error();
+
+    if output.is_null() || destination.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let destination = unsafe { std::ffi::CStr::from_ptr(destination) };
+    let destination = match destination.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return;
+        }
+    };
+
+    let output = unsafe { &mut *output };
+
+    if let Err(e) = output.set_destination(destination) {
+        set_last_error(e);
+    }
+}
+
+/// Send face weights via all enabled face emitters.
+///
+/// `weights` must point to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_send_face(output: *mut Output, weights: *const f32) {
+    clear_last_error();
+
+    if output.is_null() || weights.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let output = unsafe { &mut *output };
+    let weights = unsafe { std::slice::from_raw_parts(weights, SNOUT_FACE_SHAPE_COUNT) };
+
+    output.send_face(Weights::new(weights));
+}
+
+/// Send eye weights via all enabled eye emitters.
+///
+/// `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_send_eyes(output: *mut Output, weights: *const f32) {
+    clear_last_error();
+
+    if output.is_null() || weights.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let output = unsafe { &mut *output };
+    let weights = unsafe { std::slice::from_raw_parts(weights, SNOUT_EYE_SHAPE_COUNT) };
+
+    output.send_eyes(Weights::new(weights));
+}
+
+/// Flush the output transport.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_flush(output: *mut Output) {
+    clear_last_error();
+
+    if output.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let output = unsafe { &mut *output };
+
+    if let Err(e) = output.flush() {
+        set_last_error(e);
+    }
+}
+
+/// Returns the raw pointers to the [`Output`] fields.
+///
+/// This can be used for direct access to the transport and emitters.
+/// Pointers are valid until [`snout_output_free`] is called.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_output_fields(output: *mut Output) -> SnoutOutputFields {
+    clear_last_error();
+
+    if output.is_null() {
+        set_null_pointer_error();
+        return SnoutOutputFields::null();
+    }
+
+    let output = unsafe { &mut *output };
+
+    SnoutOutputFields {
+        transport: &mut output.transport,
+        babble: &mut output.babble,
+        etvr: &mut output.etvr,
     }
 }

@@ -7,6 +7,7 @@ use crate::{
 
 pub mod eye;
 pub mod face;
+pub mod output;
 
 #[derive(Clone, Debug, Error)]
 pub enum TrackerError {
