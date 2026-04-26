@@ -184,6 +184,42 @@ pub extern "C" fn snout_camera_name(index: usize, buffer: *mut c_char, max_len: 
     copy_len
 }
 
+/// Get the display name for the camera at `index`.
+///
+/// Copies the display name into the buffer, null-terminating it.
+/// The length of the display name, not including the null terminator, is returned.
+///
+/// If buffer is null or max_len is 0 then the length of the display name is returned.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_camera_display_name(
+    index: usize,
+    buffer: *mut c_char,
+    max_len: usize,
+) -> usize {
+    clear_last_error();
+
+    let cameras = CAMERA_INFO.lock().expect("Failed to acquire lock");
+
+    let Some(info) = cameras.get(index) else {
+        return 0;
+    };
+
+    let display_name = info.display_name();
+
+    if buffer.is_null() || max_len == 0 {
+        return display_name.len();
+    }
+
+    let copy_len = std::cmp::min(display_name.len(), max_len - 1);
+
+    unsafe {
+        std::ptr::copy_nonoverlapping(display_name.as_ptr(), buffer as *mut u8, copy_len);
+        *buffer.add(copy_len) = 0;
+    }
+
+    copy_len
+}
+
 /// Get the source for the camera at `index`.
 ///
 /// Returns null if `index` is out of bounds.

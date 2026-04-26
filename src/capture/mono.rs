@@ -7,7 +7,9 @@ pub struct MonoCamera {
 
 impl MonoCamera {
     pub fn open(source: CameraSource) -> Result<Self, CameraError> {
-        let inner = V4lCamera::open(source)?;
+        let inner = match source {
+            CameraSource::V4l(s) => V4lCamera::open(s)?,
+        };
 
         Ok(Self {
             frame: Frame::empty(inner.width as u32, inner.height as u32),

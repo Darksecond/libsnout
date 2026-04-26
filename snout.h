@@ -109,6 +109,9 @@ enum FaceShape
 typedef uint8_t FaceShape;
 #endif // __cplusplus
 
+/**
+ * Identifies a camera device and how to open it.
+ */
 typedef struct CameraSource CameraSource;
 
 typedef struct EyePipeline EyePipeline;
@@ -218,6 +221,16 @@ uintptr_t snout_query_cameras(void);
  * If buffer is null or max_len is 0 then the length of the name is returned.
  */
 uintptr_t snout_camera_name(uintptr_t index, char *buffer, uintptr_t max_len);
+
+/**
+ * Get the display name for the camera at `index`.
+ *
+ * Copies the display name into the buffer, null-terminating it.
+ * The length of the display name, not including the null terminator, is returned.
+ *
+ * If buffer is null or max_len is 0 then the length of the display name is returned.
+ */
+uintptr_t snout_camera_display_name(uintptr_t index, char *buffer, uintptr_t max_len);
 
 /**
  * Get the source for the camera at `index`.

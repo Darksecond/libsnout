@@ -1,7 +1,8 @@
 use image::GrayImage;
+use v4l::video::capture::Parameters;
 use v4l::{buffer::Type, io::traits::CaptureStream, prelude::UserptrStream, video::Capture};
 
-use crate::capture::{CameraError, discovery::CameraSource};
+use crate::capture::{CameraError, discovery::V4lSource};
 
 #[derive(Copy, Clone, Debug)]
 enum PixelFormat {
@@ -20,38 +21,29 @@ pub struct V4lCamera {
 }
 
 impl V4lCamera {
-    pub fn open(source: CameraSource) -> Result<Self, CameraError> {
-        let source = match source {
-            CameraSource::Index(i) => i,
+    pub fn open(source: V4lSource) -> Result<Self, CameraError> {
+        let device = v4l::Device::new(source.index as usize)?;
+
+        let format = v4l::Format::new(
+            source.format.width,
+            source.format.height,
+            v4l::FourCC::new(&source.fourcc),
+        );
+        let format = device.set_format(&format)?;
+
+        let params = Parameters::with_fps(source.format.fps);
+        device.set_params(&params)?;
+
+        let pixel_format = match &source.fourcc {
+            b"GREY" => PixelFormat::Grey,
+            b"YUYV" => PixelFormat::Yuyv,
+            b"UYVY" => PixelFormat::Uyvy,
+            b"MJPG" => PixelFormat::Mjpeg,
+            _ => return Err(CameraError::OpenError),
         };
 
-        let device = v4l::Device::new(source as _)?;
-        let mut format = device.format()?;
-
-        let preferred = [
-            (v4l::FourCC::new(b"GREY"), PixelFormat::Grey),
-            (v4l::FourCC::new(b"YUYV"), PixelFormat::Yuyv),
-            (v4l::FourCC::new(b"UYVY"), PixelFormat::Uyvy),
-            (v4l::FourCC::new(b"MJPG"), PixelFormat::Mjpeg),
-        ];
-
-        // TODO: Revisit this and improve.
-        let mut pixel_format = None;
-        for (fourcc, pf) in preferred {
-            format.fourcc = fourcc;
-            let actual = device.set_format(&format)?;
-            if actual.fourcc == fourcc {
-                format = actual;
-                pixel_format = Some(pf);
-                break;
-            }
-        }
-
-        let pixel_format = pixel_format.ok_or(CameraError::OpenError)?;
         let width = format.width as usize;
         let height = format.height as usize;
-
-        dbg!(pixel_format);
 
         let stream = UserptrStream::new(&device, Type::VideoCapture)?;
 

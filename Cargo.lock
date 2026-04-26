@@ -6233,6 +6233,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "snout-cli"
+version = "0.1.0"
+dependencies = [
+ "snout",
+]
+
+[[package]]
 name = "snout-frontend"
 version = "0.1.0"
 dependencies = [

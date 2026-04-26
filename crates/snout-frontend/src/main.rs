@@ -106,6 +106,9 @@ impl FaceTracker {
 }
 
 pub fn main() {
+    // NOTE: query_cameras() now returns multiple entries per physical camera
+    // (one per curated format), so hardcoded indices may not map to the
+    // expected devices. Adjust as needed.
     let sources = query_cameras();
 
     let mut transport = OscTransport::udp("127.0.0.1:9400").unwrap();

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/snout-frontend", "crates/snout-train"]
+members = ["crates/snout-cli","crates/snout-frontend", "crates/snout-train"]
 
 [package]
 name = "snout"
