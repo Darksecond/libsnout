@@ -9,6 +9,8 @@ use crate::capture::{
 };
 use crate::capture::{Frame, StereoCamera};
 use crate::pipeline::{EyePipeline, FacePipeline, FilterParameters, PipelineError};
+use crate::track::TrackerError;
+use crate::track::face::FaceTracker;
 
 // TODO: thread_local!
 static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
@@ -23,31 +25,44 @@ pub enum SnoutError {
     NullPointer,
     /// The input string was not valid UTF-8.
     InvalidUtf8,
-    /// The camera failed to open.
-    CameraOpen,
+    /// The camera failed to open due to an invalid format.
+    CameraInvalidFormat,
     /// An invalid frame was received from the camera.
     ///
     /// This might mean the camera was disconnected, or could be a transient error.
     CameraInvalidFrame,
     /// An internal error occurred during camera operations.
     CameraInternal,
-    /// The camera frame did not match the expected format.
-    CameraFrameMismatch,
     /// An internal error occurred during preprocessing.
     PreprocessInternal,
     /// The pipeline failed to load.
     PipelineLoad,
     /// The pipeline failed during inference.
     PipelineInference,
+    /// The tracker failed to load the model.
+    TrackerModel,
+    /// The tracker failed to open the camera.
+    TrackerOpen,
+    /// An internal error occurred during tracking.
+    TrackerInternal,
+}
+
+impl From<TrackerError> for SnoutError {
+    fn from(error: TrackerError) -> Self {
+        match error {
+            TrackerError::Model(_) => SnoutError::TrackerModel,
+            TrackerError::Open(_) => SnoutError::TrackerOpen,
+            TrackerError::Internal(_) => SnoutError::TrackerInternal,
+        }
+    }
 }
 
 impl From<CameraError> for SnoutError {
     fn from(error: CameraError) -> Self {
         match error {
-            CameraError::OpenError => SnoutError::CameraOpen,
+            CameraError::InvalidFormat(_) => SnoutError::CameraInvalidFormat,
             CameraError::InvalidFrame(_) => SnoutError::CameraInvalidFrame,
             CameraError::Internal(_) => SnoutError::CameraInternal,
-            CameraError::FrameMismatch { .. } => SnoutError::CameraFrameMismatch,
         }
     }
 }
@@ -885,5 +900,169 @@ pub extern "C" fn snout_face_calibrator_free(calibrator: *mut ManualFaceCalibrat
 
     unsafe {
         drop(Box::from_raw(calibrator));
+    }
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct SnoutFaceReport {
+    /// The raw frame.
+    pub raw_frame: *const Frame,
+    /// The frame after preprocessing.
+    pub processed_frame: *const Frame,
+    /// A pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+    pub weights: *const f32,
+}
+
+impl SnoutFaceReport {
+    const fn null() -> Self {
+        Self {
+            raw_frame: std::ptr::null(),
+            processed_frame: std::ptr::null(),
+            weights: std::ptr::null(),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct SnoutFaceTrackerFields {
+    pub preprocessor: *mut FramePreprocessor,
+    pub pipeline: *mut FacePipeline,
+    pub calibrator: *mut ManualFaceCalibrator,
+}
+
+impl SnoutFaceTrackerFields {
+    const fn null() -> Self {
+        Self {
+            preprocessor: std::ptr::null_mut(),
+            pipeline: std::ptr::null_mut(),
+            calibrator: std::ptr::null_mut(),
+        }
+    }
+}
+
+/// Creates a new [`FaceTracker`] from the given model path.
+///
+/// Returns a null pointer if the path is null or invalid.
+/// See [`snout_last_error`] for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_tracker_new(path: *const c_char) -> *mut FaceTracker {
+    clear_last_error();
+
+    if path.is_null() {
+        set_null_pointer_error();
+        return std::ptr::null_mut();
+    }
+
+    let path = unsafe { std::ffi::CStr::from_ptr(path) };
+    let path = match path.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            set_utf8_error(e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    match FaceTracker::new(path) {
+        Ok(tracker) => Box::into_raw(Box::new(tracker)),
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Drops a [`FaceTracker`] instance created by [`snout_face_tracker_new`].
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_tracker_free(tracker: *mut FaceTracker) {
+    clear_last_error();
+
+    if tracker.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(tracker));
+    }
+}
+
+/// Set the camera source for the [`FaceTracker`] instance.
+///
+/// If `source` is null, the camera will be closed.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_tracker_set_source(
+    tracker: *mut FaceTracker,
+    source: *const CameraSource,
+) {
+    clear_last_error();
+
+    if tracker.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let tracker = unsafe { &mut *tracker };
+
+    let source = if source.is_null() {
+        None
+    } else {
+        Some(unsafe { *source })
+    };
+
+    tracker.set_source(source);
+}
+
+/// Track a face using the [`FaceTracker`] instance.
+///
+/// Returns a null report if the tracker is null or an error occurs.
+/// See [`snout_last_error`] for details.
+///
+/// If the error is [`SnoutError_Ok`], then there was insufficient data or a transient error.
+/// Call [`snout_face_tracker_track`] again to retry.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_tracker_track(tracker: *mut FaceTracker) -> SnoutFaceReport {
+    clear_last_error();
+
+    if tracker.is_null() {
+        set_null_pointer_error();
+        return SnoutFaceReport::null();
+    }
+
+    let tracker = unsafe { &mut *tracker };
+
+    match tracker.track() {
+        Ok(Some(report)) => SnoutFaceReport {
+            raw_frame: report.raw_frame,
+            processed_frame: report.processed_frame,
+            weights: report.weights.as_ptr(),
+        },
+        Ok(None) => SnoutFaceReport::null(),
+        Err(e) => {
+            set_last_error(e);
+            SnoutFaceReport::null()
+        }
+    }
+}
+
+/// Returns the raw pointers to the [`FaceTracker`] fields.
+///
+/// This can be used for configuring the tracker.
+/// Pointers are valid until [`snout_face_tracker_free`] is called.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_tracker_fields(tracker: *mut FaceTracker) -> SnoutFaceTrackerFields {
+    clear_last_error();
+
+    if tracker.is_null() {
+        set_null_pointer_error();
+        return SnoutFaceTrackerFields::null();
+    }
+
+    let tracker = unsafe { &mut *tracker };
+
+    SnoutFaceTrackerFields {
+        preprocessor: &mut tracker.preprocessor,
+        pipeline: &mut tracker.pipeline,
+        calibrator: &mut tracker.calibrator,
     }
 }

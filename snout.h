@@ -23,9 +23,9 @@ typedef enum SnoutError {
    */
   SnoutError_InvalidUtf8,
   /**
-   * The camera failed to open.
+   * The camera failed to open due to an invalid format.
    */
-  SnoutError_CameraOpen,
+  SnoutError_CameraInvalidFormat,
   /**
    * An invalid frame was received from the camera.
    *
@@ -36,10 +36,6 @@ typedef enum SnoutError {
    * An internal error occurred during camera operations.
    */
   SnoutError_CameraInternal,
-  /**
-   * The camera frame did not match the expected format.
-   */
-  SnoutError_CameraFrameMismatch,
   /**
    * An internal error occurred during preprocessing.
    */
@@ -52,6 +48,18 @@ typedef enum SnoutError {
    * The pipeline failed during inference.
    */
   SnoutError_PipelineInference,
+  /**
+   * The tracker failed to load the model.
+   */
+  SnoutError_TrackerModel,
+  /**
+   * The tracker failed to open the camera.
+   */
+  SnoutError_TrackerOpen,
+  /**
+   * An internal error occurred during tracking.
+   */
+  SnoutError_TrackerInternal,
 } SnoutError;
 
 enum FaceShape
@@ -118,6 +126,8 @@ typedef struct EyePipeline EyePipeline;
 
 typedef struct FacePipeline FacePipeline;
 
+typedef struct FaceTracker FaceTracker;
+
 typedef struct Frame Frame;
 
 typedef struct FramePreprocessor FramePreprocessor;
@@ -170,6 +180,27 @@ typedef struct Bounds {
   float lower;
   float upper;
 } Bounds;
+
+typedef struct SnoutFaceReport {
+  /**
+   * The raw frame.
+   */
+  const struct Frame *raw_frame;
+  /**
+   * The frame after preprocessing.
+   */
+  const struct Frame *processed_frame;
+  /**
+   * A pointer to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+   */
+  const float *weights;
+} SnoutFaceReport;
+
+typedef struct SnoutFaceTrackerFields {
+  struct FramePreprocessor *preprocessor;
+  struct FacePipeline *pipeline;
+  struct ManualFaceCalibrator *calibrator;
+} SnoutFaceTrackerFields;
 
 #ifdef __cplusplus
 extern "C" {
@@ -471,6 +502,45 @@ const float *snout_face_calibrator_calibrate(struct ManualFaceCalibrator *calibr
  * Free the face calibrator.
  */
 void snout_face_calibrator_free(struct ManualFaceCalibrator *calibrator);
+
+/**
+ * Creates a new [`FaceTracker`] from the given model path.
+ *
+ * Returns a null pointer if the path is null or invalid.
+ * See [`snout_last_error`] for details.
+ */
+struct FaceTracker *snout_face_tracker_new(const char *path);
+
+/**
+ * Drops a [`FaceTracker`] instance created by [`snout_face_tracker_new`].
+ */
+void snout_face_tracker_free(struct FaceTracker *tracker);
+
+/**
+ * Set the camera source for the [`FaceTracker`] instance.
+ *
+ * If `source` is null, the camera will be closed.
+ */
+void snout_face_tracker_set_source(struct FaceTracker *tracker, const struct CameraSource *source);
+
+/**
+ * Track a face using the [`FaceTracker`] instance.
+ *
+ * Returns a null report if the tracker is null or an error occurs.
+ * See [`snout_last_error`] for details.
+ *
+ * If the error is [`SnoutError_Ok`], then there was insufficient data or a transient error.
+ * Call [`snout_face_tracker_track`] again to retry.
+ */
+struct SnoutFaceReport snout_face_tracker_track(struct FaceTracker *tracker);
+
+/**
+ * Returns the raw pointers to the [`FaceTracker`] fields.
+ *
+ * This can be used for configuring the tracker.
+ * Pointers are valid until [`snout_face_tracker_free`] is called.
+ */
+struct SnoutFaceTrackerFields snout_face_tracker_fields(struct FaceTracker *tracker);
 
 #ifdef __cplusplus
 }  // extern "C"

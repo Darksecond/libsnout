@@ -39,7 +39,12 @@ impl V4lCamera {
             b"YUYV" => PixelFormat::Yuyv,
             b"UYVY" => PixelFormat::Uyvy,
             b"MJPG" => PixelFormat::Mjpeg,
-            _ => return Err(CameraError::OpenError),
+            _ => {
+                return Err(CameraError::InvalidFormat(format!(
+                    "Unknown pixel format: {:?}",
+                    &source.fourcc
+                )));
+            }
         };
 
         let width = format.width as usize;

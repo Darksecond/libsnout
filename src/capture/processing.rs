@@ -89,8 +89,8 @@ impl FramePreprocessor {
         &self.config
     }
 
-    pub fn set_config(&mut self, calibration: PreprocessConfig) {
-        self.config = calibration;
+    pub fn set_config(&mut self, config: PreprocessConfig) {
+        self.config = config;
     }
 
     pub fn process(&mut self, source: &Frame) -> Result<&Frame, PreprocessError> {

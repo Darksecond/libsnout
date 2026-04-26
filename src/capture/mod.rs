@@ -50,19 +50,19 @@ impl Frame {
 
 #[derive(Clone, Debug, Error)]
 pub enum CameraError {
-    #[error("Failed to open camera device")]
-    OpenError,
+    #[error("Invalid format: {0}")]
+    InvalidFormat(String),
     /// Received an empty or invalid frame from hardware.
     /// This can mean that the camera is disconnected or the frame data is corrupted.
     #[error("Invalid frame: {0}")]
     InvalidFrame(String),
     #[error("Internal driver error: {0}")]
     Internal(String),
-    #[error("Frame size mismatch: expected {expected:?}, got {actual:?}")]
-    FrameMismatch {
-        expected: (u32, u32),
-        actual: (u32, u32),
-    },
+    // #[error("Frame size mismatch: expected {expected:?}, got {actual:?}")]
+    // FrameMismatch {
+    //     expected: (u32, u32),
+    //     actual: (u32, u32),
+    // },
 }
 
 impl From<std::io::Error> for CameraError {
