@@ -25,7 +25,7 @@ cargo build
 cargo install --force cbindgen
 
 export PATH=$PATH:/home/proto/.cargo/bin
-cbindgen --config cbindgen.toml --output snout.h
+cbindgen --config cbindgen.toml --output include/snout.h
 ```
 
 ## Building and running frontend

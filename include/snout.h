@@ -60,6 +60,14 @@ typedef enum SnoutError {
    * An internal error occurred during tracking.
    */
   SnoutError_TrackerInternal,
+  /**
+   * Failed to bind the transport socket.
+   */
+  SnoutError_TransportBind,
+  /**
+   * Failed to resolve the transport destination address.
+   */
+  SnoutError_TransportResolve,
 } SnoutError;
 
 enum FaceShape
@@ -133,10 +141,14 @@ enum EyeShape
 typedef uint8_t EyeShape;
 #endif // __cplusplus
 
+typedef struct BabbleEmitter BabbleEmitter;
+
 /**
  * Identifies a camera device and how to open it.
  */
 typedef struct CameraSource CameraSource;
+
+typedef struct EtvrEmitter EtvrEmitter;
 
 /**
  * Calibrator for eye shapes.
@@ -161,6 +173,10 @@ typedef struct FramePreprocessor FramePreprocessor;
 typedef struct ManualFaceCalibrator ManualFaceCalibrator;
 
 typedef struct MonoCamera MonoCamera;
+
+typedef struct OscTransport OscTransport;
+
+typedef struct Output Output;
 
 typedef struct StereoCamera StereoCamera;
 
@@ -257,6 +273,12 @@ typedef struct SnoutEyeTrackerFields {
   struct EyePipeline *pipeline;
   struct EyeCalibrator *calibrator;
 } SnoutEyeTrackerFields;
+
+typedef struct SnoutOutputFields {
+  struct OscTransport *transport;
+  struct BabbleEmitter *babble;
+  struct EtvrEmitter *etvr;
+} SnoutOutputFields;
 
 #ifdef __cplusplus
 extern "C" {
@@ -594,7 +616,7 @@ void snout_eye_calibrator_set_link_eyes(struct EyeCalibrator *calibrator, bool l
  * `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
  *
  * Returns a pointer to [`SNOUT_EYE_SHAPE_COUNT`] floats, or null if an error occurred.
- * The returned slice can be indexed using the [`EyeShape`] enum variants cast to an integer.
+ * The returned slice can be indexed using the [`EyeShape`] enum.
  *
  * The returned pointer is valid until the next call to [`snout_eye_calibrator_calibrate`]
  * or [`snout_eye_calibrator_free`].
@@ -648,6 +670,65 @@ struct SnoutFaceReport snout_face_tracker_track(struct FaceTracker *tracker);
 struct SnoutFaceTrackerFields snout_face_tracker_fields(struct FaceTracker *tracker);
 
 /**
+ * Create a new UDP OSC transport.
+ *
+ * `destination` is a null-terminated string like "127.0.0.1:9000".
+ * Returns null if the socket could not be bound or the address could not be resolved.
+ * See [`snout_last_error`] for details.
+ */
+struct OscTransport *snout_osc_transport_udp(const char *destination);
+
+/**
+ * Free an OSC transport.
+ */
+void snout_osc_transport_free(struct OscTransport *transport);
+
+/**
+ * Flush the OSC transport.
+ *
+ * Check [`snout_last_error`] to see if an error occurred.
+ */
+void snout_osc_transport_flush(struct OscTransport *transport);
+
+/**
+ * Create a new Babble emitter.
+ */
+struct BabbleEmitter *snout_babble_emitter_new(void);
+
+/**
+ * Free a Babble emitter.
+ */
+void snout_babble_emitter_free(struct BabbleEmitter *emitter);
+
+/**
+ * Send face weights via the Babble protocol.
+ *
+ * `weights` must point to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+ */
+void snout_babble_emitter_process_face(struct BabbleEmitter *emitter,
+                                       const float *weights,
+                                       struct OscTransport *transport);
+
+/**
+ * Create a new ETVR emitter.
+ */
+struct EtvrEmitter *snout_etvr_emitter_new(void);
+
+/**
+ * Free an ETVR emitter.
+ */
+void snout_etvr_emitter_free(struct EtvrEmitter *emitter);
+
+/**
+ * Send eye weights via the ETVR protocol.
+ *
+ * `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+ */
+void snout_etvr_emitter_process_eyes(struct EtvrEmitter *emitter,
+                                     const float *weights,
+                                     struct OscTransport *transport);
+
+/**
  * Creates a new [`EyeTracker`] from the given model path.
  *
  * Returns a null pointer if the path is null or invalid.
@@ -687,6 +768,54 @@ struct SnoutEyeReport snout_eye_tracker_track(struct EyeTracker *tracker);
  * Pointers are valid until [`snout_eye_tracker_free`] is called.
  */
 struct SnoutEyeTrackerFields snout_eye_tracker_fields(struct EyeTracker *tracker);
+
+/**
+ * Create a new output with the given destination address.
+ *
+ * `destination` is a null-terminated string like "127.0.0.1:9000".
+ * Returns null if the socket could not be bound or the address could not be resolved.
+ * See [`snout_last_error`] for details.
+ */
+struct Output *snout_output_new(const char *destination);
+
+/**
+ * Free an output.
+ */
+void snout_output_free(struct Output *output);
+
+/**
+ * Set the destination address of the output.
+ *
+ * `destination` is a null-terminated string like "127.0.0.1:9000".
+ */
+void snout_output_set_destination(struct Output *output, const char *destination);
+
+/**
+ * Send face weights via all enabled face emitters.
+ *
+ * `weights` must point to [`SNOUT_FACE_SHAPE_COUNT`] floats.
+ */
+void snout_output_send_face(struct Output *output, const float *weights);
+
+/**
+ * Send eye weights via all enabled eye emitters.
+ *
+ * `weights` must point to [`SNOUT_EYE_SHAPE_COUNT`] floats.
+ */
+void snout_output_send_eyes(struct Output *output, const float *weights);
+
+/**
+ * Flush the output transport.
+ */
+void snout_output_flush(struct Output *output);
+
+/**
+ * Returns the raw pointers to the [`Output`] fields.
+ *
+ * This can be used for direct access to the transport and emitters.
+ * Pointers are valid until [`snout_output_free`] is called.
+ */
+struct SnoutOutputFields snout_output_fields(struct Output *output);
 
 #ifdef __cplusplus
 }  // extern "C"
