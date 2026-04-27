@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 
 use burn::prelude::*;
@@ -6,6 +8,8 @@ use burn::store::{
     SafetensorsStoreError,
 };
 use burn::tensor::Int;
+use onnx_rs::ast::TensorProto;
+use safetensors::SafeTensors;
 
 use super::eye_net::{EyeNet, PER_EYE_CHANNELS, PER_EYE_OUTPUTS};
 
@@ -40,8 +44,8 @@ impl<B: Backend> DualEyeNet<B> {
         Tensor::cat(vec![left_out, right_out], 1)
     }
 
-    pub(crate) fn load_safetensors<P: AsRef<Path>>(
-        path: P,
+    pub(crate) fn load_safetensors(
+        path: impl AsRef<Path>,
         device: &B::Device,
     ) -> Result<Self, SafetensorsStoreError> {
         let mut store =
@@ -57,14 +61,49 @@ impl<B: Backend> DualEyeNet<B> {
         Ok(model)
     }
 
-    pub(crate) fn save_safetensors<P: AsRef<Path>>(
+    pub(crate) fn save_safetensors(
         &self,
-        path: P,
+        path: impl AsRef<Path>,
     ) -> Result<(), SafetensorsStoreError> {
         let mut store =
             SafetensorsStore::from_file(path.as_ref()).with_to_adapter(BurnToPyTorchAdapter);
 
         self.save_into(&mut store)
+    }
+
+    // TODO: Make less bad
+    pub(crate) fn save_onnx(&self, path: impl AsRef<Path>) -> Result<(), ()> {
+        let mut store = SafetensorsStore::from_bytes(None).with_to_adapter(BurnToPyTorchAdapter);
+        self.save_into(&mut store).unwrap();
+
+        let bytes = store.get_bytes().unwrap();
+        let safetensors = SafeTensors::deserialize(&bytes).unwrap();
+
+        let bytes = std::fs::read("eyeModel.onnx").unwrap();
+        let mut model = onnx_rs::parse(&bytes).unwrap();
+
+        if let Some(graph) = &mut model.graph.as_mut() {
+            for initializer in graph.initializer.iter_mut() {
+                let name = initializer.name();
+
+                if let Ok(view) = safetensors.tensor(name) {
+                    println!("Updating weights for {}", name);
+
+                    *initializer = TensorProto::from_raw(
+                        initializer.name(),
+                        initializer.dims().to_vec(),
+                        initializer.data_type(),
+                        view.data(),
+                    );
+                }
+            }
+        }
+
+        let output_onnx = onnx_rs::encode(&model);
+        let mut file = File::create(path).unwrap();
+        file.write_all(&output_onnx).unwrap();
+
+        Ok(())
     }
 }
 
