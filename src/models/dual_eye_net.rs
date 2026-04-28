@@ -10,6 +10,7 @@ use burn::store::{
 use burn::tensor::Int;
 use onnx_rs::ast::TensorProto;
 use safetensors::SafeTensors;
+use thiserror::Error;
 
 use super::eye_net::{EyeNet, PER_EYE_CHANNELS, PER_EYE_OUTPUTS};
 
@@ -20,6 +21,14 @@ pub(crate) const LABEL_DIMS: usize = 2 * PER_EYE_OUTPUTS;
 
 pub(crate) const LEFT_CHANNELS: [i64; PER_EYE_CHANNELS] = [0, 2, 4, 6];
 pub(crate) const RIGHT_CHANNELS: [i64; PER_EYE_CHANNELS] = [1, 3, 5, 7];
+
+#[derive(Clone, Debug, Error)]
+pub enum OnnxSaveError {
+    #[error("internal error: {0}")]
+    Internal(String),
+    #[error("save error: {0}")]
+    Save(String),
+}
 
 #[derive(Module, Debug)]
 pub struct DualEyeNet<B: Backend> {
@@ -61,26 +70,23 @@ impl<B: Backend> DualEyeNet<B> {
         Ok(model)
     }
 
-    pub(crate) fn save_safetensors(
-        &self,
-        path: impl AsRef<Path>,
-    ) -> Result<(), SafetensorsStoreError> {
-        let mut store =
-            SafetensorsStore::from_file(path.as_ref()).with_to_adapter(BurnToPyTorchAdapter);
+    pub(crate) fn save_onnx(&self, path: impl AsRef<Path>) -> Result<(), OnnxSaveError> {
+        let mut store = SafetensorsStore::from_bytes(None).with_to_adapter(BurnToPyTorchAdapter);
 
         self.save_into(&mut store)
-    }
+            .map_err(|e| OnnxSaveError::Internal(e.to_string()))?;
 
-    // TODO: Make less bad
-    pub(crate) fn save_onnx(&self, path: impl AsRef<Path>) -> Result<(), ()> {
-        let mut store = SafetensorsStore::from_bytes(None).with_to_adapter(BurnToPyTorchAdapter);
-        self.save_into(&mut store).unwrap();
+        let bytes = store
+            .get_bytes()
+            .map_err(|e| OnnxSaveError::Internal(e.to_string()))?;
 
-        let bytes = store.get_bytes().unwrap();
-        let safetensors = SafeTensors::deserialize(&bytes).unwrap();
+        let safetensors =
+            SafeTensors::deserialize(&bytes).map_err(|e| OnnxSaveError::Internal(e.to_string()))?;
 
-        let bytes = std::fs::read("eyeModel.onnx").unwrap();
-        let mut model = onnx_rs::parse(&bytes).unwrap();
+        let bytes = include_bytes!("emptyEyeModel.onnx");
+
+        let mut model =
+            onnx_rs::parse(bytes).map_err(|e| OnnxSaveError::Internal(e.to_string()))?;
 
         if let Some(graph) = &mut model.graph.as_mut() {
             for initializer in graph.initializer.iter_mut() {
@@ -100,8 +106,11 @@ impl<B: Backend> DualEyeNet<B> {
         }
 
         let output_onnx = onnx_rs::encode(&model);
-        let mut file = File::create(path).unwrap();
-        file.write_all(&output_onnx).unwrap();
+
+        let mut file = File::create(path).map_err(|e| OnnxSaveError::Save(e.to_string()))?;
+
+        file.write_all(&output_onnx)
+            .map_err(|e| OnnxSaveError::Save(e.to_string()))?;
 
         Ok(())
     }

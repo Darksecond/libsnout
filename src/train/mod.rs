@@ -186,11 +186,6 @@ impl Trainer {
 
         model
             .valid()
-            .save_safetensors(&path)
-            .map_err(|source| TrainerError::Save(source.to_string()))?;
-
-        model
-            .valid()
             .save_onnx(path)
             .map_err(|_| TrainerError::Save("Failed to save onnx".to_string()))?;
 
