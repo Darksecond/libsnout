@@ -2,6 +2,7 @@ use std::net::ToSocketAddrs;
 
 use crate::{
     calibration::{EyeShape, FaceShape, Weights},
+    config::Config,
     output::{BabbleEmitter, EtvrEmitter, OscTransport, TransportError},
 };
 
@@ -18,6 +19,10 @@ impl Output {
             babble: BabbleEmitter::new(),
             etvr: EtvrEmitter::new(),
         })
+    }
+
+    pub fn with_config(config: &Config) -> Result<Self, TransportError> {
+        Self::new(&config.output.osc.destination)
     }
 
     pub fn set_destination(

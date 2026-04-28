@@ -3,8 +3,11 @@ use std::path::Path;
 use crate::{
     calibration::{EyeCalibrator, EyeShape, Weights},
     capture::{
-        CameraError, Frame, StereoCamera, discovery::CameraSource, processing::FramePreprocessor,
+        CameraError, Frame, StereoCamera,
+        discovery::{CameraInfo, CameraSource},
+        processing::FramePreprocessor,
     },
+    config::Config,
     pipeline::EyePipeline,
     track::TrackerError,
 };
@@ -40,6 +43,44 @@ impl EyeTracker {
             left_source: None,
             right_source: None,
         })
+    }
+
+    pub fn with_config(cameras: &[CameraInfo], config: &Config) -> Result<Self, TrackerError> {
+        let mut tracker = Self::new(&config.eye.model)?;
+
+        let left_camera = cameras
+            .iter()
+            .find(|s| s.display_name() == config.eye.left.camera)
+            .map(|c| c.source);
+
+        let right_camera = cameras
+            .iter()
+            .find(|s| s.display_name() == config.eye.right.camera)
+            .map(|c| c.source);
+
+        tracker.set_source(left_camera, right_camera);
+
+        tracker
+            .calibrator
+            .set_link_eyes(config.eye.link.unwrap_or(true));
+
+        // Left preprocessor
+        if let Some(crop) = &config.eye.left.crop {
+            tracker.left_preprocessor.set_crop(*crop);
+        }
+        if let Some(transform) = &config.eye.left.transform {
+            tracker.left_preprocessor.set_config(*transform);
+        }
+
+        // Right preprocessor
+        if let Some(crop) = &config.eye.right.crop {
+            tracker.right_preprocessor.set_crop(*crop);
+        }
+        if let Some(transform) = &config.eye.right.transform {
+            tracker.right_preprocessor.set_config(*transform);
+        }
+
+        Ok(tracker)
     }
 
     /// Sets the camera source for the eye tracker.

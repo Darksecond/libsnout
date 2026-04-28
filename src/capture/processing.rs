@@ -1,13 +1,14 @@
 use image::Luma;
 use image::imageops::crop_imm;
 use imageproc::geometric_transformations::{Interpolation, Projection, warp};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::capture::Frame;
 
 /// Crop an area of the frame.
 /// defined by normalized coordinates (0.0 - 1.0).
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Crop {
     pub top: f32,
@@ -43,7 +44,7 @@ impl Crop {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct PreprocessConfig {
     /// In radians

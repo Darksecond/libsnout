@@ -4,18 +4,20 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::commands::{ListCamerasCommand, TrainCommand};
+use crate::commands::{ListCamerasCommand, TrackCommand, TrainCommand};
 
 fn main() {
     let cli = Args::parse();
+
+    let config = snout::config::load(&cli.config).unwrap();
 
     match cli.command {
         Commands::ListCameras {} => ListCamerasCommand::new().run(),
         Commands::Train {
             source,
             destination,
-            baseline,
-        } => TrainCommand::new(source, destination, Some(baseline)).run(),
+        } => TrainCommand::new(source, destination, config.train.baseline).run(),
+        Commands::Track {} => TrackCommand::new(config).run(),
     }
 }
 
@@ -24,7 +26,7 @@ fn main() {
 #[command(flatten_help = true)]
 struct Args {
     #[arg(short, long, value_name = "config.toml")]
-    config: Option<PathBuf>,
+    config: PathBuf,
 
     #[command(subcommand)]
     command: Commands,
@@ -49,9 +51,7 @@ enum Commands {
         /// A destination `onnx` file.
         #[arg(value_name = "output.onnx")]
         destination: PathBuf,
-
-        /// Baseline `safetensors` file to base the model on.
-        #[arg(short, long, value_name = "eyeModel.safetensors")]
-        baseline: PathBuf,
     },
+    /// Start tracking!
+    Track {},
 }

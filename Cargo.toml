@@ -19,6 +19,9 @@ rand = "0.8"
 tracing = "0.1"
 onnx-rs = "0.1.2"
 safetensors = "0.7.0"
+ort = { version = "2.0.0-rc.12", default-features = false, features = ["api-20", "cuda", "load-dynamic", "ndarray", "tracing"] }
+serde = "1.0.228"
+toml = "1.1.2"
 
 [build-dependencies]
 burn-onnx = { version = "0.21.0-pre.3" }

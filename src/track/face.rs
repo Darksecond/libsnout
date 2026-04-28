@@ -3,8 +3,11 @@ use std::path::Path;
 use crate::{
     calibration::{FaceShape, ManualFaceCalibrator, Weights},
     capture::{
-        CameraError, Frame, MonoCamera, discovery::CameraSource, processing::FramePreprocessor,
+        CameraError, Frame, MonoCamera,
+        discovery::{CameraInfo, CameraSource},
+        processing::FramePreprocessor,
     },
+    config::Config,
     pipeline::FacePipeline,
     track::TrackerError,
 };
@@ -34,6 +37,27 @@ impl FaceTracker {
             camera: None,
             source: None,
         })
+    }
+
+    pub fn with_config(cameras: &[CameraInfo], config: &Config) -> Result<Self, TrackerError> {
+        let mut tracker = Self::new(&config.face.model)?;
+
+        let camera = cameras
+            .iter()
+            .find(|s| s.display_name() == config.face.camera)
+            .map(|c| c.source);
+
+        tracker.set_source(camera);
+
+        if let Some(crop) = &config.face.crop {
+            tracker.preprocessor.set_crop(*crop);
+        }
+
+        if let Some(transform) = &config.face.transform {
+            tracker.preprocessor.set_config(*transform);
+        }
+
+        Ok(tracker)
     }
 
     /// Sets the camera source for the tracker.

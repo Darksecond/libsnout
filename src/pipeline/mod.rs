@@ -3,6 +3,8 @@ mod face;
 
 mod internal;
 
+use std::path::Path;
+
 use thiserror::Error;
 
 pub use eye::EyePipeline;
@@ -22,4 +24,16 @@ pub struct FilterParameters {
     pub enable: bool,
     pub min_cutoff: f32,
     pub beta: f32,
+}
+
+/// Initialize the ONNX runtime.
+pub fn initialize_runtime(path: impl AsRef<Path>) {
+    ort::init_from(path)
+        .unwrap()
+        .with_execution_providers([
+            ort::ep::CUDAExecutionProvider::default().build(),
+            ort::ep::CPUExecutionProvider::default().build(),
+        ])
+        .with_name("libsnout")
+        .commit();
 }

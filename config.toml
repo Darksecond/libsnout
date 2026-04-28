@@ -1,0 +1,57 @@
+#libonnxruntime = "/usr/lib64/libonnxruntime.so"
+
+[eye]
+#link = true
+model = "eyeModel.onnx"
+
+[eye.left]
+camera = "Bigeye: Bigeye (800x400 @ 90fps)"
+
+#[eye.left.crop]
+#top = 0.0
+#left = 0.0
+#bottom = 1.0
+#right = 1.0
+
+#[eye.left.transform]
+#rotation = 0.0
+#brightness = 0.66
+#vertical_flip = false
+#horizontal_flip = false
+
+[eye.right]
+camera = "Bigeye: Bigeye (800x400 @ 90fps)"
+
+#[eye.right.crop]
+#top = 0.0
+#left = 0.0
+#bottom = 1.0
+#right = 1.0
+
+#[eye.right.transform]
+#rotation = 0.0
+#brightness = 0.66
+#vertical_flip = false
+#horizontal_flip = false
+
+[face]
+camera = "USB 2.0 Camera: USB Camera (640x480 @ 30fps)"
+model = "faceModel.onnx"
+
+#[face.crop]
+#top = 0.0
+#left = 0.0
+#bottom = 1.0
+#right = 1.0
+
+#[face.transform]
+#rotation = 0.0
+#brightness = 0.66
+#vertical_flip = false
+#horizontal_flip = false
+
+[train]
+baseline = "eyeModel.safetensors"
+
+#[output.osc]
+#destination = "127.0.0.1:9000"

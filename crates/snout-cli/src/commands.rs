@@ -1,6 +1,10 @@
+mod track;
+
 use std::{io::Write, path::PathBuf};
 
 use snout::{cancel::Cancel, train::Progress};
+
+pub use track::TrackCommand;
 
 pub struct ListCamerasCommand {}
 
@@ -20,11 +24,11 @@ impl ListCamerasCommand {
 pub struct TrainCommand {
     source: PathBuf,
     destination: PathBuf,
-    baseline: Option<PathBuf>,
+    baseline: PathBuf,
 }
 
 impl TrainCommand {
-    pub fn new(source: PathBuf, destination: PathBuf, baseline: Option<PathBuf>) -> Self {
+    pub fn new(source: PathBuf, destination: PathBuf, baseline: PathBuf) -> Self {
         Self {
             source,
             destination,
@@ -33,13 +37,8 @@ impl TrainCommand {
     }
 
     pub fn run(&self) {
-        let Some(baseline) = &self.baseline else {
-            println!("No baseline specified.");
-            return;
-        };
-
         println!("Training eye model...");
-        let mut trainer = snout::train::Trainer::new(&self.source, baseline).unwrap();
+        let mut trainer = snout::train::Trainer::new(&self.source, &self.baseline).unwrap();
         trainer.on_progress(print_progress);
         trainer.train(&self.destination, Cancel::never()).unwrap();
         println!("wrote: {}", self.destination.display());
