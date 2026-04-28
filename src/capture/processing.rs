@@ -7,7 +7,7 @@ use crate::capture::Frame;
 
 /// Crop an area of the frame.
 /// defined by normalized coordinates (0.0 - 1.0).
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
 pub struct Crop {
     pub top: f32,
@@ -51,7 +51,6 @@ pub struct PreprocessConfig {
     pub brightness: f32,
     pub horizontal_flip: bool,
     pub vertical_flip: bool,
-    pub crop: Crop,
 }
 
 impl Default for PreprocessConfig {
@@ -61,7 +60,6 @@ impl Default for PreprocessConfig {
             brightness: 0.66,
             horizontal_flip: false,
             vertical_flip: false,
-            crop: Crop::full(),
         }
     }
 }
@@ -75,6 +73,7 @@ pub enum PreprocessError {
 pub struct FramePreprocessor {
     frame: Frame,
     config: PreprocessConfig,
+    crop: Crop,
 }
 
 impl FramePreprocessor {
@@ -82,6 +81,7 @@ impl FramePreprocessor {
         Self {
             frame: Frame::empty(0, 0),
             config: PreprocessConfig::default(),
+            crop: Crop::full(),
         }
     }
 
@@ -93,9 +93,17 @@ impl FramePreprocessor {
         self.config = config;
     }
 
+    pub fn crop(&self) -> Crop {
+        self.crop
+    }
+
+    pub fn set_crop(&mut self, crop: Crop) {
+        self.crop = crop;
+    }
+
     pub fn process(&mut self, source: &Frame) -> Result<&Frame, PreprocessError> {
         // Crop
-        let (rx, ry, rw, rh) = self.config.crop.to_pixels(source.image.dimensions());
+        let (rx, ry, rw, rh) = self.crop.to_pixels(source.image.dimensions());
         self.frame.image = crop_imm(&source.image, rx, ry, rw, rh).to_image();
 
         // Brightness

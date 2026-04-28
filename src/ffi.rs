@@ -4,6 +4,7 @@ use std::{cell::RefCell, os::raw::c_char};
 use crate::calibration::{
     Bounds, EyeCalibrator, EyeShape, FaceShape, ManualFaceCalibrator, Weights,
 };
+use crate::capture::processing::Crop;
 use crate::capture::{
     CameraError, MonoCamera,
     discovery::{self, CameraInfo, CameraSource},
@@ -562,6 +563,41 @@ pub extern "C" fn snout_frame_preprocessor_set_config(
     let preprocessor = unsafe { &mut *preprocessor };
 
     preprocessor.set_config(config);
+}
+
+/// Get the current preprocessing crop.
+///
+/// returns a copy of the current crop.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_frame_preprocessor_crop(preprocessor: *const FramePreprocessor) -> Crop {
+    clear_last_error();
+
+    if preprocessor.is_null() {
+        set_null_pointer_error();
+        return Crop::default();
+    }
+
+    let preprocessor = unsafe { &*preprocessor };
+
+    preprocessor.crop()
+}
+
+/// Set the preprocessing crop.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_frame_preprocessor_set_crop(
+    preprocessor: *mut FramePreprocessor,
+    crop: Crop,
+) {
+    clear_last_error();
+
+    if preprocessor.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let preprocessor = unsafe { &mut *preprocessor };
+
+    preprocessor.set_crop(crop);
 }
 
 /// Process a frame using the preprocessor.
