@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use burn::backend::wgpu::WgpuDevice;
-
 use crate::{
     calibration::EyeShape,
     capture::Frame,
@@ -15,7 +13,6 @@ use crate::{
 };
 
 pub struct EyePipeline {
-    device: WgpuDevice,
     transfer: FrameToBurnTensor,
     inference: EyeInference,
     collector: EyeCompositor,
@@ -24,11 +21,9 @@ pub struct EyePipeline {
 
 impl EyePipeline {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
-        let device = WgpuDevice::default();
-        let inference = EyeInference::new(&device, path)?;
+        let inference = EyeInference::new(path)?;
 
         Ok(Self {
-            device,
             transfer: FrameToBurnTensor::new(8, 128, 128),
             inference,
             collector: EyeCompositor::new(),
@@ -49,9 +44,10 @@ impl EyePipeline {
             return Ok(None);
         };
 
-        let tensor = self.transfer.transfer_composite(mat, &self.device);
+        self.transfer
+            .transfer_composite(mat, &mut self.inference.input_tensor);
 
-        let weights = self.inference.run(tensor)?;
+        let weights = self.inference.run()?;
 
         let filtered_weights = self.filter.filter(&weights);
 

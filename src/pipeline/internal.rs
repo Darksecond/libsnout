@@ -21,42 +21,39 @@ impl FrameToBurnTensor {
         }
     }
 
-    pub fn transfer_frame(
-        &mut self,
-        source: &Frame,
-        device: &burn::backend::wgpu::WgpuDevice,
-    ) -> burn::Tensor<burn::backend::Wgpu, 4> {
+    pub fn transfer_frame(&mut self, source: &Frame, destination: &mut ort::value::Tensor<f32>) {
         self.transfer(
             &source.image.as_ref(),
             source.image.width(),
             source.image.height(),
             1,
-            device,
-        )
+        );
+
+        destination
+            .extract_tensor_mut()
+            .1
+            .copy_from_slice(&self.buffer);
     }
 
     pub fn transfer_composite(
         &mut self,
         source: &CompositeImage,
-        device: &burn::backend::wgpu::WgpuDevice,
-    ) -> burn::Tensor<burn::backend::Wgpu, 4> {
+        destination: &mut ort::value::Tensor<f32>,
+    ) {
         self.transfer(
             source.data.as_ref(),
             source.width,
             source.height,
             source.channels,
-            device,
-        )
+        );
+
+        destination
+            .extract_tensor_mut()
+            .1
+            .copy_from_slice(&self.buffer);
     }
 
-    fn transfer(
-        &mut self,
-        data: &[u8],
-        width: u32,
-        height: u32,
-        channels: usize,
-        device: &burn::backend::wgpu::WgpuDevice,
-    ) -> burn::Tensor<burn::backend::Wgpu, 4> {
+    fn transfer(&mut self, data: &[u8], width: u32, height: u32, channels: usize) {
         let (tc, th, tw) = (self.channels, self.height, self.width);
         assert_eq!(channels, tc, "channel count mismatch");
 
@@ -78,10 +75,5 @@ impl FrameToBurnTensor {
                 self.buffer[c * th * tw + i] = pixel as f32 / 255.0;
             }
         }
-
-        burn::Tensor::from_data(
-            burn::tensor::TensorData::new(self.buffer.clone(), [1, tc, th, tw]),
-            device,
-        )
     }
 }

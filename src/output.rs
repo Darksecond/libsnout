@@ -68,7 +68,6 @@ impl BabbleEmitter {
 
     pub fn process_eyes(&mut self, weights: Weights<EyeShape>, transport: &mut OscTransport) {
         let _ = (weights, transport);
-        todo!()
     }
 }
 

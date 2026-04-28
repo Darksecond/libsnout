@@ -34,6 +34,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EyesConfig {
+    pub enabled: Option<bool>,
     pub link: Option<bool>,
     pub model: String,
 
@@ -50,6 +51,7 @@ pub struct EyeConfig {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FaceConfig {
+    pub enabled: Option<bool>,
     pub camera: String,
     pub model: String,
     pub crop: Option<Crop>,
@@ -75,7 +77,7 @@ pub struct OscConfig {
 impl Default for OscConfig {
     fn default() -> Self {
         Self {
-            destination: "127.0.0.1:9000".to_string(),
+            destination: "127.0.0.1:9400".to_string(),
         }
     }
 }

@@ -6250,6 +6250,7 @@ dependencies = [
  "byteorder",
  "image",
  "imageproc",
+ "ndarray 0.17.2",
  "onnx-rs",
  "ort",
  "rand 0.8.6",

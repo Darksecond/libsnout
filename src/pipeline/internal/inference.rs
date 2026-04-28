@@ -1,75 +1,134 @@
-use crate::{
-    models::{dual_eye_net::DualEyeNet, face_net::FaceNet},
-    pipeline::PipelineError,
-};
+use crate::pipeline::PipelineError;
 use std::path::Path;
 
-use burn::{
-    Tensor,
-    backend::{Wgpu, wgpu::WgpuDevice},
+use ndarray::Array4;
+use ort::{
+    inputs,
+    session::{Session, builder::SessionBuilder},
 };
-use burn_store::{BurnpackStore, ModuleSnapshot};
 
 pub struct FaceInference {
-    model: FaceNet<Wgpu>,
+    session: Session,
+    input_name: String,
+    pub input_tensor: ort::value::Tensor<f32>,
     output: Vec<f32>,
 }
 
 impl FaceInference {
-    pub fn new(device: &WgpuDevice, path: impl AsRef<Path>) -> Result<Self, PipelineError> {
-        let model = {
-            let mut model = FaceNet::new(device);
-            let mut store = BurnpackStore::from_file(path);
-            model
-                .load_from(&mut store)
-                .map_err(|e| PipelineError::Load(e.to_string()))?;
-            model
-        };
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
+        let session = builder()
+            .map_err(|e| PipelineError::Load(e.to_string()))?
+            .commit_from_file(path)
+            .map_err(|e| PipelineError::Load(e.to_string()))?;
+
+        let input0 = &session.inputs()[0];
+        let input_name = input0.name().to_string();
+
+        let dims = input0
+            .dtype()
+            .tensor_shape()
+            .unwrap()
+            .iter()
+            .copied()
+            .collect::<Vec<_>>();
+
+        let input_tensor = ort::value::Tensor::from_array(Array4::<f32>::zeros((
+            1,
+            dims[1] as _,
+            dims[2] as _,
+            dims[3] as _,
+        )))
+        .map_err(|e| PipelineError::Load(e.to_string()))?;
 
         Ok(Self {
-            model,
+            session,
+            input_name,
+            input_tensor,
             output: vec![0.; 45],
         })
     }
 
-    pub fn run(&mut self, tensor: Tensor<Wgpu, 4>) -> Result<&[f32], PipelineError> {
-        let output = self.model.forward(tensor);
-        let data = output.into_data();
-        let src = data
-            .as_slice()
+    pub fn run(&mut self) -> Result<&[f32], PipelineError> {
+        let outputs = self
+            .session
+            .run(inputs![&self.input_name => &self.input_tensor])
             .map_err(|e| PipelineError::Inference(e.to_string()))?;
 
-        self.output.copy_from_slice(src);
+        let blendshapes = outputs[0]
+            .try_extract_tensor::<f32>()
+            .map_err(|e| PipelineError::Inference(e.to_string()))?;
+
+        self.output.copy_from_slice(blendshapes.1);
 
         Ok(&self.output)
     }
 }
 
 pub struct EyeInference {
-    model: DualEyeNet<Wgpu>,
+    session: Session,
+    input_name: String,
+    pub input_tensor: ort::value::Tensor<f32>,
     output: Vec<f32>,
 }
 
 impl EyeInference {
-    pub fn new(device: &WgpuDevice, path: impl AsRef<Path>) -> Result<Self, PipelineError> {
-        let model = DualEyeNet::load_safetensors(path, device)
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
+        let session = builder()
+            .map_err(|e| PipelineError::Load(e.to_string()))?
+            .commit_from_file(path)
             .map_err(|e| PipelineError::Load(e.to_string()))?;
 
+        let input0 = &session.inputs()[0];
+        let input_name = input0.name().to_string();
+
+        let dims = input0
+            .dtype()
+            .tensor_shape()
+            .unwrap()
+            .iter()
+            .copied()
+            .collect::<Vec<_>>();
+
+        let input_tensor = ort::value::Tensor::from_array(Array4::<f32>::zeros((
+            1,
+            dims[1] as _,
+            dims[2] as _,
+            dims[3] as _,
+        )))
+        .map_err(|e| PipelineError::Load(e.to_string()))?;
+
         Ok(Self {
-            model,
+            session,
+            input_name,
+            input_tensor,
             output: vec![0.; 6],
         })
     }
 
-    pub fn run(&mut self, tensor: Tensor<Wgpu, 4>) -> Result<&[f32], PipelineError> {
-        let output = self.model.forward(tensor);
-        let data = output.into_data();
-        let src = data
-            .as_slice()
+    pub fn run(&mut self) -> Result<&[f32], PipelineError> {
+        let outputs = self
+            .session
+            .run(inputs![&self.input_name => &self.input_tensor])
             .map_err(|e| PipelineError::Inference(e.to_string()))?;
 
-        self.output.copy_from_slice(src);
+        let blendshapes = outputs[0]
+            .try_extract_tensor::<f32>()
+            .map_err(|e| PipelineError::Inference(e.to_string()))?;
+
+        self.output.copy_from_slice(blendshapes.1);
 
         Ok(&self.output)
     }
+}
+
+fn builder() -> Result<SessionBuilder, ort::Error> {
+    let builder = Session::builder()?
+        .with_inter_threads(1)?
+        .with_intra_threads(1)?
+        .with_intra_op_spinning(false)?
+        .with_inter_op_spinning(false)?
+        .with_memory_pattern(true)?
+        .with_optimization_level(ort::session::builder::GraphOptimizationLevel::All)?;
+
+    Ok(builder)
 }
