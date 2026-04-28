@@ -39,6 +39,8 @@ impl TrackCommand {
 
         let mut output = Output::with_config(&self.config).unwrap();
 
+        println!("Tracking...");
+
         loop {
             let face_report = if let Some(face_tracker) = &mut face_tracker {
                 face_tracker.track().unwrap()

@@ -11,7 +11,7 @@ use thiserror::Error;
 pub use mono::MonoCamera;
 pub use stereo::StereoCamera;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Frame {
     pub(crate) image: GrayImage,
 }

@@ -10,7 +10,7 @@ A working face tracking model is supplied. It's the same as in the baballonia re
 
 On fedora it's:
 ```sh
-dnf install llvm llvm-devel
+dnf install llvm llvm-devel onnxruntime onnxruntime-devel
 ```
 
 ### Compiling
@@ -28,12 +28,10 @@ export PATH=$PATH:/home/proto/.cargo/bin
 cbindgen --config cbindgen.toml --output include/snout.h
 ```
 
-## Building and running frontend
-
-You also need a `eyeModel.safetensors` that can be converted.
+## Building and running the CLI
 
 ```sh
-cargo run -p snout-frontend --release
+cargo run --release -p snout-cli -- -c config.toml help
 ```
 
 ## License

@@ -2,9 +2,18 @@ mod track;
 
 use std::{io::Write, path::PathBuf};
 
-use snout::{cancel::Cancel, train::Progress};
+use snout::{
+    cancel::Cancel,
+    capture::discovery::query_cameras,
+    config::Config,
+    pipeline::initialize_runtime,
+    track::{eye::EyeTracker, face::FaceTracker},
+    train::Progress,
+};
 
 pub use track::TrackCommand;
+
+use crate::CaptureSource;
 
 pub struct ListCamerasCommand {}
 
@@ -57,5 +66,86 @@ fn print_progress(p: Progress) {
     } else {
         print!("\r{line}");
         let _ = std::io::stdout().flush();
+    }
+}
+
+pub struct CaptureCommand {
+    config: Config,
+    source: CaptureSource,
+    destination: PathBuf,
+}
+
+impl CaptureCommand {
+    pub fn new(config: Config, source: CaptureSource, destination: PathBuf) -> Self {
+        Self {
+            config,
+            source,
+            destination,
+        }
+    }
+
+    pub fn run(&self) {
+        let cameras = query_cameras();
+
+        if let Some(path) = &self.config.libonnxruntime {
+            initialize_runtime(path);
+        } else {
+            initialize_runtime("/usr/lib64/libonnxruntime.so");
+        }
+
+        {
+            match self.source {
+                CaptureSource::LeftEye => {
+                    let mut tracker = EyeTracker::with_config(&cameras, &self.config).unwrap();
+
+                    let mut i = 0;
+                    while i < 10 {
+                        if let Some(report) = tracker.track().unwrap() {
+                            let frame = report.left_processed_frame.clone();
+                            frame.into_image().save(&self.destination).unwrap();
+
+                            println!("Captured frame!");
+                            return;
+                        }
+                        i += 1;
+                    }
+                    println!("Could not capture frame");
+                }
+                CaptureSource::RightEye => {
+                    let mut tracker = EyeTracker::with_config(&cameras, &self.config).unwrap();
+
+                    let mut i = 0;
+                    while i < 10 {
+                        if let Some(report) = tracker.track().unwrap() {
+                            let frame = report.right_processed_frame.clone();
+                            frame.into_image().save(&self.destination).unwrap();
+
+                            println!("Captured frame!");
+                            return;
+                        }
+
+                        i += 1;
+                    }
+                    println!("Could not capture frame");
+                }
+                CaptureSource::Face => {
+                    let mut tracker = FaceTracker::with_config(&cameras, &self.config).unwrap();
+
+                    let mut i = 0;
+                    while i < 10 {
+                        if let Some(report) = tracker.track().unwrap() {
+                            let frame = report.processed_frame.clone();
+                            frame.into_image().save(&self.destination).unwrap();
+
+                            println!("Captured frame!");
+                            return;
+                        }
+
+                        i += 1;
+                    }
+                    println!("Could not capture frame");
+                }
+            }
+        }
     }
 }

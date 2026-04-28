@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::commands::{ListCamerasCommand, TrackCommand, TrainCommand};
+use crate::commands::{CaptureCommand, ListCamerasCommand, TrackCommand, TrainCommand};
 
 fn main() {
     let cli = Args::parse();
@@ -18,6 +18,10 @@ fn main() {
             destination,
         } => TrainCommand::new(source, destination, config.train.baseline).run(),
         Commands::Track {} => TrackCommand::new(config).run(),
+        Commands::Capture {
+            source,
+            destination,
+        } => CaptureCommand::new(config, source, destination).run(),
     }
 }
 
@@ -43,6 +47,12 @@ enum CaptureSource {
 enum Commands {
     /// List all available cameras.
     ListCameras {},
+    /// Save a frame from the specified source.
+    Capture {
+        source: CaptureSource,
+        #[arg(value_name = "output.jpeg")]
+        destination: PathBuf,
+    },
     /// Train the eye model based on the captured samples.
     Train {
         /// A file containing samples for training.

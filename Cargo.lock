@@ -6272,13 +6272,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "snout-frontend"
-version = "0.1.0"
-dependencies = [
- "snout",
-]
-
-[[package]]
 name = "socket2"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
