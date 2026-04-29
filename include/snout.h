@@ -188,6 +188,16 @@ typedef struct SnoutStereoCameraFrames {
   const struct Frame *right;
 } SnoutStereoCameraFrames;
 
+typedef struct PreprocessConfig {
+  /**
+   * In radians
+   */
+  float rotation;
+  float brightness;
+  bool horizontal_flip;
+  bool vertical_flip;
+} PreprocessConfig;
+
 /**
  * Crop an area of the frame.
  * defined by normalized coordinates (0.0 - 1.0).
@@ -198,17 +208,6 @@ typedef struct Crop {
   float bottom;
   float right;
 } Crop;
-
-typedef struct PreprocessConfig {
-  /**
-   * In radians
-   */
-  float rotation;
-  float brightness;
-  bool horizontal_flip;
-  bool vertical_flip;
-  struct Crop crop;
-} PreprocessConfig;
 
 typedef struct FilterParameters {
   bool enable;
@@ -451,6 +450,18 @@ void snout_frame_preprocessor_set_config(struct FramePreprocessor *preprocessor,
                                          struct PreprocessConfig config);
 
 /**
+ * Get the current preprocessing crop.
+ *
+ * returns a copy of the current crop.
+ */
+struct Crop snout_frame_preprocessor_crop(const struct FramePreprocessor *preprocessor);
+
+/**
+ * Set the preprocessing crop.
+ */
+void snout_frame_preprocessor_set_crop(struct FramePreprocessor *preprocessor, struct Crop crop);
+
+/**
  * Process a frame using the preprocessor.
  *
  * Returns a pointer to the processed frame, or null if an error occurred.
@@ -461,12 +472,21 @@ const struct Frame *snout_frame_preprocessor_process(struct FramePreprocessor *p
                                                      const struct Frame *frame);
 
 /**
- * Create a new face pipeline, loading the model from the given path.
+ * Create a new face pipeline.
  *
- * Returns a pointer to the pipeline, or null if the model could not be loaded.
- * Check [`snout_last_error`] for details.
+ * Returns a pointer to the pipeline.
  */
-struct FacePipeline *snout_face_pipeline_new(const char *path);
+struct FacePipeline *snout_face_pipeline_new(void);
+
+/**
+ * Set the model for the face pipeline from the given path.
+ *
+ * Returns true if the model was loaded successfully, false otherwise.
+ * Check [`snout_last_error`] for details.
+ *
+ * If path is null, the model will be unloaded.
+ */
+bool snout_face_pipeline_set_model(struct FacePipeline *pipeline, const char *path);
 
 /**
  * Get the current filter parameters of the face pipeline.
@@ -502,12 +522,19 @@ const float *snout_face_pipeline_run(struct FacePipeline *pipeline, const struct
 void snout_face_pipeline_free(struct FacePipeline *pipeline);
 
 /**
- * Create a new eye pipeline, loading the model from the given path.
- *
- * Returns a pointer to the pipeline, or null if the model could not be loaded.
- * Check [`snout_last_error`] for details.
+ * Create a new eye pipeline.
  */
-struct EyePipeline *snout_eye_pipeline_new(const char *path);
+struct EyePipeline *snout_eye_pipeline_new(void);
+
+/**
+ * Set the model for the eye pipeline from the given path.
+ *
+ * Returns true if the model was loaded successfully, false otherwise.
+ * Check [`snout_last_error`] for details.
+ *
+ * If path is null, the model will be unloaded.
+ */
+bool snout_eye_pipeline_set_model(struct EyePipeline *pipeline, const char *path);
 
 /**
  * Get the current filter parameters of the eye pipeline.
@@ -631,12 +658,9 @@ const float *snout_eye_calibrator_calibrate(struct EyeCalibrator *calibrator, co
 void snout_eye_calibrator_free(struct EyeCalibrator *calibrator);
 
 /**
- * Creates a new [`FaceTracker`] from the given model path.
- *
- * Returns a null pointer if the path is null or invalid.
- * See [`snout_last_error`] for details.
+ * Creates a new [`FaceTracker`].
  */
-struct FaceTracker *snout_face_tracker_new(const char *path);
+struct FaceTracker *snout_face_tracker_new(void);
 
 /**
  * Drops a [`FaceTracker`] instance created by [`snout_face_tracker_new`].
@@ -729,12 +753,9 @@ void snout_etvr_emitter_process_eyes(struct EtvrEmitter *emitter,
                                      struct OscTransport *transport);
 
 /**
- * Creates a new [`EyeTracker`] from the given model path.
- *
- * Returns a null pointer if the path is null or invalid.
- * See [`snout_last_error`] for details.
+ * Creates a new [`EyeTracker`].
  */
-struct EyeTracker *snout_eye_tracker_new(const char *path);
+struct EyeTracker *snout_eye_tracker_new(void);
 
 /**
  * Drops an [`EyeTracker`] instance created by [`snout_eye_tracker_new`].

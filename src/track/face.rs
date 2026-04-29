@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{
     calibration::{FaceShape, ManualFaceCalibrator, Weights},
     capture::{
@@ -28,19 +26,21 @@ pub struct FaceTracker {
 }
 
 impl FaceTracker {
-    pub fn new(model: impl AsRef<Path>) -> Result<Self, TrackerError> {
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             preprocessor: FramePreprocessor::new(),
-            pipeline: FacePipeline::new(model)?,
+            pipeline: FacePipeline::new(),
             calibrator: ManualFaceCalibrator::new(),
 
             camera: None,
             source: None,
-        })
+        }
     }
 
     pub fn with_config(cameras: &[CameraInfo], config: &Config) -> Result<Self, TrackerError> {
-        let mut tracker = Self::new(&config.face.model)?;
+        let mut tracker = Self::new();
+
+        tracker.pipeline.set_model(config.face.model.as_ref())?;
 
         let camera = cameras
             .iter()

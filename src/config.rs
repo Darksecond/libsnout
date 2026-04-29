@@ -36,7 +36,7 @@ pub struct Config {
 pub struct EyesConfig {
     pub enabled: Option<bool>,
     pub link: Option<bool>,
-    pub model: String,
+    pub model: Option<PathBuf>,
 
     pub left: EyeConfig,
     pub right: EyeConfig,
@@ -53,7 +53,7 @@ pub struct EyeConfig {
 pub struct FaceConfig {
     pub enabled: Option<bool>,
     pub camera: String,
-    pub model: String,
+    pub model: Option<PathBuf>,
     pub crop: Option<Crop>,
     pub transform: Option<PreprocessConfig>,
 }

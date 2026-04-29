@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{
     calibration::{EyeCalibrator, EyeShape, Weights},
     capture::{
@@ -32,21 +30,23 @@ pub struct EyeTracker {
 }
 
 impl EyeTracker {
-    pub fn new(model: impl AsRef<Path>) -> Result<Self, TrackerError> {
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             left_preprocessor: FramePreprocessor::new(),
             right_preprocessor: FramePreprocessor::new(),
-            pipeline: EyePipeline::new(model)?,
+            pipeline: EyePipeline::new(),
             calibrator: EyeCalibrator::new(),
 
             camera: None,
             left_source: None,
             right_source: None,
-        })
+        }
     }
 
     pub fn with_config(cameras: &[CameraInfo], config: &Config) -> Result<Self, TrackerError> {
-        let mut tracker = Self::new(&config.eye.model)?;
+        let mut tracker = Self::new();
+
+        tracker.pipeline.set_model(config.eye.model.as_ref())?;
 
         let left_camera = cameras
             .iter()

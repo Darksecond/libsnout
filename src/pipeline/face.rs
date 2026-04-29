@@ -11,19 +11,28 @@ use crate::{
 
 pub struct FacePipeline {
     transfer: FrameToBurnTensor,
-    inference: FaceInference,
+    inference: Option<FaceInference>,
     filter: OneEuroFilter,
 }
 
 impl FacePipeline {
-    pub fn new(path: impl AsRef<Path>) -> Result<Self, PipelineError> {
-        let inference = FaceInference::new(path)?;
-
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             transfer: FrameToBurnTensor::new(1, 224, 224),
-            inference,
+            inference: None,
             filter: OneEuroFilter::new(FaceShape::count()),
-        })
+        }
+    }
+
+    pub fn set_model(&mut self, path: Option<impl AsRef<Path>>) -> Result<(), PipelineError> {
+        if let Some(path) = path {
+            let inference = FaceInference::new(path)?;
+            self.inference = Some(inference);
+        } else {
+            self.inference = None;
+        }
+
+        Ok(())
     }
 
     pub fn filter(&self) -> FilterParameters {
@@ -35,10 +44,14 @@ impl FacePipeline {
     }
 
     pub fn run(&mut self, frame: &Frame) -> Result<Option<&[f32]>, PipelineError> {
-        self.transfer
-            .transfer_frame(frame, &mut self.inference.input_tensor);
+        let Some(inference) = self.inference.as_mut() else {
+            return Ok(None);
+        };
 
-        let weights = self.inference.run()?;
+        self.transfer
+            .transfer_frame(frame, &mut inference.input_tensor);
+
+        let weights = inference.run()?;
 
         let filtered_weights = self.filter.filter(&weights);
 

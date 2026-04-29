@@ -633,33 +633,57 @@ pub extern "C" fn snout_frame_preprocessor_process(
 #[unsafe(no_mangle)]
 pub static SNOUT_FACE_SHAPE_COUNT: usize = 45;
 
-/// Create a new face pipeline, loading the model from the given path.
+/// Create a new face pipeline.
 ///
-/// Returns a pointer to the pipeline, or null if the model could not be loaded.
-/// Check [`snout_last_error`] for details.
+/// Returns a pointer to the pipeline.
 #[unsafe(no_mangle)]
-pub extern "C" fn snout_face_pipeline_new(path: *const c_char) -> *mut FacePipeline {
+pub extern "C" fn snout_face_pipeline_new() -> *mut FacePipeline {
     clear_last_error();
 
-    if path.is_null() {
-        set_null_pointer_error();
-        return std::ptr::null_mut();
-    }
+    let pipeline = FacePipeline::new();
 
-    let path = unsafe { std::ffi::CStr::from_ptr(path) };
-    let path = match path.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_utf8_error(e);
-            return std::ptr::null_mut();
-        }
+    Box::into_raw(Box::new(pipeline))
+}
+
+/// Set the model for the face pipeline from the given path.
+///
+/// Returns true if the model was loaded successfully, false otherwise.
+/// Check [`snout_last_error`] for details.
+///
+/// If path is null, the model will be unloaded.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_face_pipeline_set_model(
+    pipeline: *mut FacePipeline,
+    path: *const c_char,
+) -> bool {
+    clear_last_error();
+
+    let path = if path.is_null() {
+        None
+    } else {
+        let path = unsafe { std::ffi::CStr::from_ptr(path) };
+
+        Some(match path.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_utf8_error(e);
+                return false;
+            }
+        })
     };
 
-    match FacePipeline::new(path) {
-        Ok(pipeline) => Box::into_raw(Box::new(pipeline)),
+    if pipeline.is_null() {
+        set_null_pointer_error();
+        return false;
+    }
+
+    let pipeline = unsafe { &mut *pipeline };
+
+    match pipeline.set_model(path) {
+        Ok(()) => true,
         Err(e) => {
             set_last_error(e);
-            std::ptr::null_mut()
+            false
         }
     }
 }
@@ -753,33 +777,54 @@ pub extern "C" fn snout_face_pipeline_free(pipeline: *mut FacePipeline) {
 #[unsafe(no_mangle)]
 pub static SNOUT_EYE_SHAPE_COUNT: usize = 6;
 
-/// Create a new eye pipeline, loading the model from the given path.
-///
-/// Returns a pointer to the pipeline, or null if the model could not be loaded.
-/// Check [`snout_last_error`] for details.
+/// Create a new eye pipeline.
 #[unsafe(no_mangle)]
-pub extern "C" fn snout_eye_pipeline_new(path: *const c_char) -> *mut EyePipeline {
+pub extern "C" fn snout_eye_pipeline_new() -> *mut EyePipeline {
     clear_last_error();
 
-    if path.is_null() {
-        set_null_pointer_error();
-        return std::ptr::null_mut();
-    }
+    let pipeline = EyePipeline::new();
+    Box::into_raw(Box::new(pipeline))
+}
 
-    let path = unsafe { std::ffi::CStr::from_ptr(path) };
-    let path = match path.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_utf8_error(e);
-            return std::ptr::null_mut();
-        }
+/// Set the model for the eye pipeline from the given path.
+///
+/// Returns true if the model was loaded successfully, false otherwise.
+/// Check [`snout_last_error`] for details.
+///
+/// If path is null, the model will be unloaded.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_eye_pipeline_set_model(
+    pipeline: *mut EyePipeline,
+    path: *const c_char,
+) -> bool {
+    clear_last_error();
+
+    let path = if path.is_null() {
+        None
+    } else {
+        let path = unsafe { std::ffi::CStr::from_ptr(path) };
+
+        Some(match path.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_utf8_error(e);
+                return false;
+            }
+        })
     };
 
-    match EyePipeline::new(path) {
-        Ok(pipeline) => Box::into_raw(Box::new(pipeline)),
+    if pipeline.is_null() {
+        set_null_pointer_error();
+        return false;
+    }
+
+    let pipeline = unsafe { &mut *pipeline };
+
+    match pipeline.set_model(path) {
+        Ok(()) => true,
         Err(e) => {
             set_last_error(e);
-            std::ptr::null_mut()
+            false
         }
     }
 }
@@ -1119,35 +1164,14 @@ impl SnoutFaceTrackerFields {
     }
 }
 
-/// Creates a new [`FaceTracker`] from the given model path.
-///
-/// Returns a null pointer if the path is null or invalid.
-/// See [`snout_last_error`] for details.
+/// Creates a new [`FaceTracker`].
 #[unsafe(no_mangle)]
-pub extern "C" fn snout_face_tracker_new(path: *const c_char) -> *mut FaceTracker {
+pub extern "C" fn snout_face_tracker_new() -> *mut FaceTracker {
     clear_last_error();
 
-    if path.is_null() {
-        set_null_pointer_error();
-        return std::ptr::null_mut();
-    }
+    let tracker = FaceTracker::new();
 
-    let path = unsafe { std::ffi::CStr::from_ptr(path) };
-    let path = match path.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_utf8_error(e);
-            return std::ptr::null_mut();
-        }
-    };
-
-    match FaceTracker::new(path) {
-        Ok(tracker) => Box::into_raw(Box::new(tracker)),
-        Err(e) => {
-            set_last_error(e);
-            std::ptr::null_mut()
-        }
-    }
+    Box::into_raw(Box::new(tracker))
 }
 
 /// Drops a [`FaceTracker`] instance created by [`snout_face_tracker_new`].
@@ -1446,35 +1470,13 @@ impl SnoutEyeTrackerFields {
     }
 }
 
-/// Creates a new [`EyeTracker`] from the given model path.
-///
-/// Returns a null pointer if the path is null or invalid.
-/// See [`snout_last_error`] for details.
+/// Creates a new [`EyeTracker`].
 #[unsafe(no_mangle)]
-pub extern "C" fn snout_eye_tracker_new(path: *const c_char) -> *mut EyeTracker {
+pub extern "C" fn snout_eye_tracker_new() -> *mut EyeTracker {
     clear_last_error();
 
-    if path.is_null() {
-        set_null_pointer_error();
-        return std::ptr::null_mut();
-    }
-
-    let path = unsafe { std::ffi::CStr::from_ptr(path) };
-    let path = match path.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_utf8_error(e);
-            return std::ptr::null_mut();
-        }
-    };
-
-    match EyeTracker::new(path) {
-        Ok(tracker) => Box::into_raw(Box::new(tracker)),
-        Err(e) => {
-            set_last_error(e);
-            std::ptr::null_mut()
-        }
-    }
+    let tracker = EyeTracker::new();
+    Box::into_raw(Box::new(tracker))
 }
 
 /// Drops an [`EyeTracker`] instance created by [`snout_eye_tracker_new`].
