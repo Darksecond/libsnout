@@ -1,12 +1,11 @@
 #libonnxruntime = "/usr/lib64/libonnxruntime.so"
 
 [eye]
-#enabled = true
 #link = true
-model = "eyeModel.onnx"
+model = "eyeModel.onnx" # If not specified, tracking will be disabled.
 
 [eye.left]
-camera = "Bigeye: Bigeye (800x400 @ 90fps)"
+camera = "Bigeye: Bigeye (800x400 @ 90fps)" # If not specified, tracking will be disabled.
 
 #[eye.left.crop]
 #top = 0.0
@@ -21,7 +20,7 @@ camera = "Bigeye: Bigeye (800x400 @ 90fps)"
 #horizontal_flip = false
 
 [eye.right]
-camera = "Bigeye: Bigeye (800x400 @ 90fps)"
+camera = "Bigeye: Bigeye (800x400 @ 90fps)" # If not specified, tracking will be disabled.
 
 #[eye.right.crop]
 #top = 0.0
@@ -36,9 +35,8 @@ camera = "Bigeye: Bigeye (800x400 @ 90fps)"
 #horizontal_flip = false
 
 [face]
-#enabled = true
-camera = "USB 2.0 Camera: USB Camera (640x480 @ 30fps)"
-model = "faceModel.onnx"
+camera = "USB 2.0 Camera: USB Camera (640x480 @ 30fps)" # If not specified, tracking will be disabled.
+model = "faceModel.onnx" # If not specified, tracking will be disabled.
 
 #[face.crop]
 #top = 0.0

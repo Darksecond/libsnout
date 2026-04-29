@@ -34,7 +34,6 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EyesConfig {
-    pub enabled: Option<bool>,
     pub link: Option<bool>,
     pub model: Option<PathBuf>,
 
@@ -51,7 +50,6 @@ pub struct EyeConfig {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FaceConfig {
-    pub enabled: Option<bool>,
     pub camera: String,
     pub model: Option<PathBuf>,
     pub crop: Option<Crop>,
