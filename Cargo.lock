@@ -6269,6 +6269,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "snout",
+ "tracing-subscriber",
 ]
 
 [[package]]

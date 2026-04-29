@@ -3,11 +3,20 @@ mod commands;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use tracing_subscriber::EnvFilter;
 
 use crate::commands::{CaptureCommand, ListCamerasCommand, TrackCommand, TrainCommand};
 
 fn main() {
     let cli = Args::parse();
+
+    if cli.verbose {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")),
+            )
+            .init();
+    }
 
     let config = snout::config::load(&cli.config).unwrap();
 
@@ -31,6 +40,10 @@ fn main() {
 struct Args {
     #[arg(short, long, value_name = "config.toml")]
     config: PathBuf,
+
+    /// Enable verbose output (tracing logs).
+    #[arg(short, long)]
+    verbose: bool,
 
     #[command(subcommand)]
     command: Commands,
