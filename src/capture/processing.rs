@@ -70,7 +70,7 @@ impl Crop {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct PreprocessConfig {
-    /// In radians
+    /// In degrees
     pub rotation: f32,
     pub brightness: f32,
     pub horizontal_flip: bool,
@@ -147,7 +147,7 @@ impl FramePreprocessor {
 
         // Rotation and flip
         {
-            let rotation = self.config.rotation;
+            let rotation = self.config.rotation.to_radians();
             let h_flip = self.config.horizontal_flip;
             let v_flip = self.config.vertical_flip;
 
