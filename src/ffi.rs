@@ -586,7 +586,7 @@ pub extern "C" fn snout_frame_preprocessor_crop(preprocessor: *const FramePrepro
 #[unsafe(no_mangle)]
 pub extern "C" fn snout_frame_preprocessor_set_crop(
     preprocessor: *mut FramePreprocessor,
-    crop: Crop,
+    crop: *const Crop,
 ) {
     clear_last_error();
 
@@ -594,6 +594,12 @@ pub extern "C" fn snout_frame_preprocessor_set_crop(
         set_null_pointer_error();
         return;
     }
+
+    let crop = if crop.is_null() {
+        None
+    } else {
+        Some(unsafe { *crop })
+    };
 
     let preprocessor = unsafe { &mut *preprocessor };
 

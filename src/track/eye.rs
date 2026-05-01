@@ -65,17 +65,15 @@ impl EyeTracker {
             .set_link_eyes(config.eye.link.unwrap_or(true));
 
         // Left preprocessor
-        if let Some(crop) = &config.eye.left.crop {
-            tracker.left_preprocessor.set_crop(*crop);
-        }
+        tracker.left_preprocessor.set_crop(config.eye.left.crop);
+
         if let Some(transform) = &config.eye.left.transform {
             tracker.left_preprocessor.set_config(*transform);
         }
 
         // Right preprocessor
-        if let Some(crop) = &config.eye.right.crop {
-            tracker.right_preprocessor.set_crop(*crop);
-        }
+        tracker.right_preprocessor.set_crop(config.eye.right.crop);
+
         if let Some(transform) = &config.eye.right.transform {
             tracker.right_preprocessor.set_config(*transform);
         }

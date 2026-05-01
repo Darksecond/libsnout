@@ -27,6 +27,29 @@ impl Crop {
         }
     }
 
+    /// Calculate a square crop centered within the frame.
+    pub const fn square(width: u32, height: u32) -> Self {
+        if width > height {
+            let value = (width as f32 - height as f32) / 2.0 / width as f32;
+
+            Crop {
+                top: 0.,
+                bottom: 1.,
+                left: value,
+                right: 1. - value,
+            }
+        } else {
+            let value = (height as f32 - width as f32) / 2.0 / height as f32;
+
+            Crop {
+                top: value,
+                bottom: 1. - value,
+                left: 0.,
+                right: 1.,
+            }
+        }
+    }
+
     /// Convert normalised crop coordinates to pixel-space `(x, y, w, h)`,
     /// clamping to source bounds and falling back to the full frame when
     /// the region is empty or already covers the entire source.
@@ -74,7 +97,7 @@ pub enum PreprocessError {
 pub struct FramePreprocessor {
     frame: Frame,
     config: PreprocessConfig,
-    crop: Crop,
+    crop: Option<Crop>,
 }
 
 impl FramePreprocessor {
@@ -82,7 +105,7 @@ impl FramePreprocessor {
         Self {
             frame: Frame::empty(0, 0),
             config: PreprocessConfig::default(),
-            crop: Crop::full(),
+            crop: None,
         }
     }
 
@@ -95,16 +118,21 @@ impl FramePreprocessor {
     }
 
     pub fn crop(&self) -> Crop {
-        self.crop
+        self.crop.unwrap_or_default()
     }
 
-    pub fn set_crop(&mut self, crop: Crop) {
+    pub fn set_crop(&mut self, crop: Option<Crop>) {
         self.crop = crop;
     }
 
     pub fn process(&mut self, source: &Frame) -> Result<&Frame, PreprocessError> {
+        if self.crop.is_none() {
+            self.crop = Some(Crop::square(source.width() as _, source.height() as _));
+        }
+
         // Crop
-        let (rx, ry, rw, rh) = self.crop.to_pixels(source.image.dimensions());
+        let crop = self.crop.as_ref().unwrap();
+        let (rx, ry, rw, rh) = crop.to_pixels(source.image.dimensions());
         self.frame.image = crop_imm(&source.image, rx, ry, rw, rh).to_image();
 
         // Brightness

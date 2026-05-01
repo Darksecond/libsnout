@@ -49,9 +49,7 @@ impl FaceTracker {
 
         tracker.set_source(camera);
 
-        if let Some(crop) = &config.face.crop {
-            tracker.preprocessor.set_crop(*crop);
-        }
+        tracker.preprocessor.set_crop(config.face.crop);
 
         if let Some(transform) = &config.face.transform {
             tracker.preprocessor.set_config(*transform);

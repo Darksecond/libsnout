@@ -459,7 +459,8 @@ struct Crop snout_frame_preprocessor_crop(const struct FramePreprocessor *prepro
 /**
  * Set the preprocessing crop.
  */
-void snout_frame_preprocessor_set_crop(struct FramePreprocessor *preprocessor, struct Crop crop);
+void snout_frame_preprocessor_set_crop(struct FramePreprocessor *preprocessor,
+                                       const struct Crop *crop);
 
 /**
  * Process a frame using the preprocessor.
