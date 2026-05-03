@@ -199,14 +199,20 @@ typedef struct PreprocessConfig {
 } PreprocessConfig;
 
 /**
- * Crop an area of the frame.
- * defined by normalized coordinates (0.0 - 1.0).
+ * Crop specification using shift/scale semantics.
+ *
+ * The crop always produces a square region. At the default scale of 1.0 the
+ * square is as large as possible (bounded by the minor axis), centered in the
+ * frame.  Higher scale values zoom in (smaller crop region).  major_shift
+ * slides the square along the major (longest) axis and minor_shift slides it
+ * along the minor axis (which only has room to move when scale > 1.0).
+ * Shift values are normalised: -1 and +1 correspond to the crop touching
+ * opposite edges.
  */
 typedef struct Crop {
-  float top;
-  float left;
-  float bottom;
-  float right;
+  float major_shift;
+  float minor_shift;
+  float scale;
 } Crop;
 
 typedef struct FilterParameters {

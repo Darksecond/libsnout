@@ -8,10 +8,9 @@ model = "eyeModel.onnx" # If not specified, tracking will be disabled.
 camera = "Bigeye: Bigeye (800x400 @ 90fps)" # If not specified, tracking will be disabled.
 
 #[eye.left.crop]
-#top = 0.0
-#left = 0.0
-#bottom = 1.0
-#right = 1.0
+#scale = 1.0
+#major_shift = 0.0
+#minor_shift = 0.0
 
 #[eye.left.transform]
 #rotation = 0.0
@@ -23,10 +22,9 @@ camera = "Bigeye: Bigeye (800x400 @ 90fps)" # If not specified, tracking will be
 camera = "Bigeye: Bigeye (800x400 @ 90fps)" # If not specified, tracking will be disabled.
 
 #[eye.right.crop]
-#top = 0.0
-#left = 0.0
-#bottom = 1.0
-#right = 1.0
+#scale = 1.0
+#major_shift = 0.0
+#minor_shift = 0.0
 
 #[eye.right.transform]
 #rotation = 0.0
@@ -39,10 +37,9 @@ camera = "USB 2.0 Camera: USB Camera (640x480 @ 30fps)" # If not specified, trac
 model = "faceModel.onnx" # If not specified, tracking will be disabled.
 
 #[face.crop]
-#top = 0.0
-#left = 0.0
-#bottom = 1.0
-#right = 1.0
+#scale = 1.0
+#major_shift = 0.0
+#minor_shift = 0.0
 
 #[face.transform]
 #rotation = 0.0

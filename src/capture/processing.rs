@@ -6,69 +6,81 @@ use thiserror::Error;
 
 use crate::capture::Frame;
 
-/// Crop an area of the frame.
-/// defined by normalized coordinates (0.0 - 1.0).
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+/// Pixel-space crop region within a frame.
+#[derive(Copy, Clone, Debug)]
+struct PixelCrop {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+}
+
+/// Specifies a square crop region.
+///
+/// `major_shift` shifts the cropped region along the longest axis.
+/// -1 and +1 correspond to the crop touching opposite edges.
+///
+/// `minor_shift` shifts it along the shortest axis.
+/// This will only have an effect when `scale` is larger than 1.0.
+///
+/// Both values are in the range [-1.0, 1.0], with 0.0 being centered.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
+#[serde(default)]
 pub struct Crop {
-    pub top: f32,
-    pub left: f32,
-    pub bottom: f32,
-    pub right: f32,
+    pub major_shift: f32,
+    pub minor_shift: f32,
+    pub scale: f32,
+}
+
+impl Default for Crop {
+    fn default() -> Self {
+        Self {
+            major_shift: 0.0,
+            minor_shift: 0.0,
+            scale: 1.0,
+        }
+    }
 }
 
 impl Crop {
-    pub const fn full() -> Self {
-        Self {
-            top: 0.,
-            left: 0.,
-            bottom: 1.,
-            right: 1.,
-        }
-    }
+    fn to_pixel_crop(self, src_w: u32, src_h: u32) -> PixelCrop {
+        let minor = src_w.min(src_h) as f32;
+        let side = (minor / self.scale).clamp(1.0, minor).round() as u32;
 
-    /// Calculate a square crop centered within the frame.
-    pub const fn square(width: u32, height: u32) -> Self {
-        if width > height {
-            let value = (width as f32 - height as f32) / 2.0 / width as f32;
-
-            Crop {
-                top: 0.,
-                bottom: 1.,
-                left: value,
-                right: 1. - value,
-            }
+        let (major_axis_len, minor_axis_len, landscape) = if src_w >= src_h {
+            (src_w, src_h, true)
         } else {
-            let value = (height as f32 - width as f32) / 2.0 / height as f32;
+            (src_h, src_w, false)
+        };
 
-            Crop {
-                top: value,
-                bottom: 1. - value,
-                left: 0.,
-                right: 1.,
-            }
-        }
-    }
+        let major_slack = major_axis_len.saturating_sub(side) as f32;
+        let minor_slack = minor_axis_len.saturating_sub(side) as f32;
 
-    /// Convert normalised crop coordinates to pixel-space `(x, y, w, h)`,
-    /// clamping to source bounds and falling back to the full frame when
-    /// the region is empty or already covers the entire source.
-    fn to_pixels(&self, (src_w, src_h): (u32, u32)) -> (u32, u32, u32, u32) {
-        let x = (self.left.clamp(0.0, 1.0) * src_w as f32) as u32;
-        let y = (self.top.clamp(0.0, 1.0) * src_h as f32) as u32;
-        let w = ((self.right.clamp(0.0, 1.0) * src_w as f32) as u32).saturating_sub(x);
-        let h = ((self.bottom.clamp(0.0, 1.0) * src_h as f32) as u32).saturating_sub(y);
+        // shift in [-1, 1] → offset in [0, slack]
+        let major_off =
+            ((1.0 + self.major_shift.clamp(-1.0, 1.0)) * 0.5 * major_slack).round() as u32;
+        let minor_off =
+            ((1.0 + self.minor_shift.clamp(-1.0, 1.0)) * 0.5 * minor_slack).round() as u32;
 
-        if w == 0 || h == 0 || (w == src_w && h == src_h) {
-            (0, 0, src_w, src_h)
+        let (x, y) = if landscape {
+            (major_off, minor_off)
         } else {
-            (x, y, w, h)
+            (minor_off, major_off)
+        };
+
+        PixelCrop {
+            x,
+            y,
+            width: side,
+            height: side,
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
+#[serde(default)]
 pub struct PreprocessConfig {
     /// In degrees
     pub rotation: f32,
@@ -97,7 +109,7 @@ pub enum PreprocessError {
 pub struct FramePreprocessor {
     frame: Frame,
     config: PreprocessConfig,
-    crop: Option<Crop>,
+    crop: Crop,
 }
 
 impl FramePreprocessor {
@@ -105,7 +117,7 @@ impl FramePreprocessor {
         Self {
             frame: Frame::empty(0, 0),
             config: PreprocessConfig::default(),
-            crop: None,
+            crop: Crop::default(),
         }
     }
 
@@ -118,22 +130,19 @@ impl FramePreprocessor {
     }
 
     pub fn crop(&self) -> Crop {
-        self.crop.unwrap_or_default()
+        self.crop
     }
 
-    pub fn set_crop(&mut self, crop: Option<Crop>) {
+    pub fn set_crop(&mut self, crop: Crop) {
         self.crop = crop;
     }
 
     pub fn process(&mut self, source: &Frame) -> Result<&Frame, PreprocessError> {
-        if self.crop.is_none() {
-            self.crop = Some(Crop::square(source.width() as _, source.height() as _));
-        }
-
         // Crop
-        let crop = self.crop.as_ref().unwrap();
-        let (rx, ry, rw, rh) = crop.to_pixels(source.image.dimensions());
-        self.frame.image = crop_imm(&source.image, rx, ry, rw, rh).to_image();
+        let pc = self
+            .crop
+            .to_pixel_crop(source.width() as u32, source.height() as u32);
+        self.frame.image = crop_imm(&source.image, pc.x, pc.y, pc.width, pc.height).to_image();
 
         // Brightness
         // TODO: Double check, maybe `1. - brightness`

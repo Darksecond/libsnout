@@ -595,11 +595,12 @@ pub extern "C" fn snout_frame_preprocessor_set_crop(
         return;
     }
 
-    let crop = if crop.is_null() {
-        None
-    } else {
-        Some(unsafe { *crop })
-    };
+    if crop.is_null() {
+        set_null_pointer_error();
+        return;
+    }
+
+    let crop = unsafe { *crop };
 
     let preprocessor = unsafe { &mut *preprocessor };
 

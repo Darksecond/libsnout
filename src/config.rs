@@ -44,7 +44,8 @@ pub struct EyesConfig {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct EyeConfig {
     pub camera: String,
-    pub crop: Option<Crop>,
+    #[serde(default)]
+    pub crop: Crop,
     pub transform: Option<PreprocessConfig>,
 }
 
@@ -52,7 +53,8 @@ pub struct EyeConfig {
 pub struct FaceConfig {
     pub camera: String,
     pub model: Option<PathBuf>,
-    pub crop: Option<Crop>,
+    #[serde(default)]
+    pub crop: Crop,
     pub transform: Option<PreprocessConfig>,
 }
 
