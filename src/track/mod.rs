@@ -1,8 +1,10 @@
+use std::path::Path;
+
 use thiserror::Error;
 
 use crate::{
     capture::{CameraError, processing::PreprocessError},
-    pipeline::PipelineError,
+    pipeline::{PipelineError, initialize_runtime_with_path},
 };
 
 pub mod eye;
@@ -42,4 +44,43 @@ impl From<PipelineError> for TrackerError {
             PipelineError::Inference(e) => TrackerError::Internal(e),
         }
     }
+}
+
+/// Initialize the ONNX runtime.
+///
+/// This will try and find the best matching candidate.
+///
+/// If a path is provided, it will be tried first.
+/// `LD_LIBRARY_PATH` is parsed, or a fallback path to `/usr/lib64/libonnxruntime.so` will be used.
+///
+/// This function will panic if no path could be found.
+pub fn initialize_runtime(path: Option<impl AsRef<Path>>) {
+    if let Some(path) = path {
+        let path = path.as_ref();
+
+        if path.exists() {
+            initialize_runtime_with_path(path);
+            return;
+        } else {
+            tracing::error!(path = %path.display(), "path does not exist");
+        }
+    }
+
+    if let Some(search_path) = std::env::var("LD_LIBRARY_PATH").ok() {
+        for dir in search_path.split(':') {
+            let path = Path::new(dir).join("libonnxruntime.so");
+            if path.exists() {
+                initialize_runtime_with_path(&path);
+                return;
+            }
+        }
+    }
+
+    let fallback = Path::new("/usr/lib64/libonnxruntime.so");
+    if fallback.exists() {
+        initialize_runtime_with_path(fallback);
+        return;
+    }
+
+    panic!("Could not find libonnxruntime.so");
 }

@@ -1,3 +1,5 @@
+use std::ffi::CStr;
+use std::path::Path;
 use std::sync::Mutex;
 use std::{cell::RefCell, os::raw::c_char};
 
@@ -13,10 +15,10 @@ use crate::capture::{
 use crate::capture::{Frame, StereoCamera};
 use crate::output::{BabbleEmitter, EtvrEmitter, OscTransport, TransportError};
 use crate::pipeline::{EyePipeline, FacePipeline, FilterParameters, PipelineError};
-use crate::track::TrackerError;
 use crate::track::eye::EyeTracker;
 use crate::track::face::FaceTracker;
 use crate::track::output::Output;
+use crate::track::{TrackerError, initialize_runtime};
 
 // TODO: thread_local!
 static CAMERA_INFO: Mutex<Vec<CameraInfo>> = Mutex::new(Vec::new());
@@ -1757,4 +1759,29 @@ pub extern "C" fn snout_output_fields(output: *mut Output) -> SnoutOutputFields 
         babble: &mut output.babble,
         etvr: &mut output.etvr,
     }
+}
+
+/// Initialize the runtime.
+///
+/// If `path` is not null, it will be considered first when searching for `libonnxruntime.so`.
+#[unsafe(no_mangle)]
+pub extern "C" fn snout_initialize_runtime(path: *const std::ffi::c_char) {
+    clear_last_error();
+
+    let path = if path.is_null() {
+        None
+    } else {
+        let path = unsafe { CStr::from_ptr(path) };
+        let path = match path.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_utf8_error(e);
+                return;
+            }
+        };
+
+        Some(Path::new(path))
+    };
+
+    initialize_runtime(path);
 }

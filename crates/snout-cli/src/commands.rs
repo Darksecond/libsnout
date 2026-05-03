@@ -6,8 +6,7 @@ use snout::{
     cancel::Cancel,
     capture::discovery::query_cameras,
     config::Config,
-    pipeline::initialize_runtime,
-    track::{eye::EyeTracker, face::FaceTracker},
+    track::{eye::EyeTracker, face::FaceTracker, initialize_runtime},
     train::Progress,
 };
 
@@ -87,11 +86,7 @@ impl CaptureCommand {
     pub fn run(&self) {
         let cameras = query_cameras();
 
-        if let Some(path) = &self.config.libonnxruntime {
-            initialize_runtime(path);
-        } else {
-            initialize_runtime("/usr/lib64/libonnxruntime.so");
-        }
+        initialize_runtime(self.config.libonnxruntime.as_ref());
 
         {
             match self.source {

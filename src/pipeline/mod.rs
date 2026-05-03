@@ -26,8 +26,10 @@ pub struct FilterParameters {
     pub beta: f32,
 }
 
-/// Initialize the ONNX runtime.
-pub fn initialize_runtime(path: impl AsRef<Path>) {
+/// Initialize the ONNX runtime with a specific path.
+pub(crate) fn initialize_runtime_with_path(path: impl AsRef<Path>) {
+    tracing::info!(path = %path.as_ref().display(), "using libonnxruntime");
+
     ort::init_from(path)
         .unwrap()
         .with_execution_providers([

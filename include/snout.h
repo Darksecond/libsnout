@@ -845,6 +845,13 @@ void snout_output_flush(struct Output *output);
  */
 struct SnoutOutputFields snout_output_fields(struct Output *output);
 
+/**
+ * Initialize the runtime.
+ *
+ * If `path` is not null, it will be considered first when searching for `libonnxruntime.so`.
+ */
+void snout_initialize_runtime(const char *path);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

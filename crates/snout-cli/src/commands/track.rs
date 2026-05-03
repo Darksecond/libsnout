@@ -3,8 +3,7 @@ use std::{thread::sleep, time::Duration};
 use snout::{
     capture::discovery::query_cameras,
     config::Config,
-    pipeline::initialize_runtime,
-    track::{eye::EyeTracker, face::FaceTracker, output::Output},
+    track::{eye::EyeTracker, face::FaceTracker, initialize_runtime, output::Output},
 };
 
 pub struct TrackCommand {
@@ -17,11 +16,7 @@ impl TrackCommand {
     }
 
     pub fn run(&self) {
-        if let Some(path) = &self.config.libonnxruntime {
-            initialize_runtime(path);
-        } else {
-            initialize_runtime("/usr/lib64/libonnxruntime.so");
-        }
+        initialize_runtime(self.config.libonnxruntime.as_ref());
 
         let cameras = query_cameras();
 
