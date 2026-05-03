@@ -190,7 +190,7 @@ typedef struct SnoutStereoCameraFrames {
 
 typedef struct PreprocessConfig {
   /**
-   * In radians
+   * In degrees
    */
   float rotation;
   float brightness;
@@ -199,15 +199,15 @@ typedef struct PreprocessConfig {
 } PreprocessConfig;
 
 /**
- * Crop specification using shift/scale semantics.
+ * Specifies a square crop region.
  *
- * The crop always produces a square region. At the default scale of 1.0 the
- * square is as large as possible (bounded by the minor axis), centered in the
- * frame.  Higher scale values zoom in (smaller crop region).  major_shift
- * slides the square along the major (longest) axis and minor_shift slides it
- * along the minor axis (which only has room to move when scale > 1.0).
- * Shift values are normalised: -1 and +1 correspond to the crop touching
- * opposite edges.
+ * `major_shift` shifts the cropped region along the longest axis.
+ * -1 and +1 correspond to the crop touching opposite edges.
+ *
+ * `minor_shift` shifts it along the shortest axis.
+ * This will only have an effect when `scale` is larger than 1.0.
+ *
+ * Both values are in the range [-1.0, 1.0], with 0.0 being centered.
  */
 typedef struct Crop {
   float major_shift;
